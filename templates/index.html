@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogador de Produtos</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>🛒 Catalogador de Produtos</h1>
+        <p>Cadastre seus produtos e publique em todos os marketplaces</p>
+    </header>
+
+    <main>
+        <section class="formulario">
+            <h2>Cadastrar Novo Produto</h2>
+            <form id="formProduto">
+                <div class="campo">
+                    <label>Nome do Produto *</label>
+                    <input type="text" id="nome" placeholder="Ex: Tênis Nike Air Max" required>
+                </div>
+                <div class="campo">
+                    <label>Descrição *</label>
+                    <textarea id="descricao" placeholder="Descreva o produto detalhadamente..." required></textarea>
+                </div>
+                <div class="linha">
+                    <div class="campo">
+                        <label>Preço (R$) *</label>
+                        <input type="number" id="preco" placeholder="0,00" step="0.01" required>
+                    </div>
+                    <div class="campo">
+                        <label>Estoque *</label>
+                        <input type="number" id="estoque" placeholder="0" required>
+                    </div>
+                </div>
+                <div class="campo">
+                    <label>Categoria *</label>
+                    <select id="categoria" required>
+                        <option value="">Selecione...</option>
+                        <option value="eletronicos">Eletrônicos</option>
+                        <option value="roupas">Roupas e Calçados</option>
+                        <option value="casa">Casa e Decoração</option>
+                        <option value="esportes">Esportes</option>
+                        <option value="beleza">Beleza e Saúde</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>URL da Imagem</label>
+                    <input type="text" id="imagem_url" placeholder="https://...">
+                </div>
+
+                <div class="marketplaces">
+                    <h3>Publicar em:</h3>
+                    <div class="opcoes">
+                        <label><input type="checkbox" value="mercadolivre"> Mercado Livre</label>
+                        <label><input type="checkbox" value="shopee"> Shopee</label>
+                        <label><input type="checkbox" value="amazon"> Amazon</label>
+                        <label><input type="checkbox" value="magalu"> Magalu</label>
+                    </div>
+                </div>
+
+                <button type="submit">Cadastrar Produto</button>
+            </form>
+        </section>
+
+        <section class="lista">
+            <h2>Produtos Cadastrados</h2>
+            <div id="listaProdutos"></div>
+        </section>
+    </main>
+
+    <script>
+        // Carregar produtos ao abrir a página
+        carregarProdutos();
+
+        document.getElementById('formProduto').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const produto = {
+                nome: document.getElementById('nome').value,
+                descricao: document.getElementById('descricao').value,
+                preco: parseFloat(document.getElementById('preco').value),
+                estoque: parseInt(document.getElementById('estoque').value),
+                categoria: document.getElementById('categoria').value,
+                imagem_url: document.getElementById('imagem_url').value
+            };
+
+            const resposta = await fetch('/produtos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(produto)
+            });
+
+            const resultado = await resposta.json();
+
+            if (resultado.success) {
+                alert('Produto cadastrado com sucesso!');
+                document.getElementById('formProduto').reset();
+                carregarProdutos();
+            }
+        });
+
+        async function carregarProdutos() {
+            const resposta = await fetch('/produtos');
+            const produtos = await resposta.json();
+            const lista = document.getElementById('listaProdutos');
+
+            if (produtos.length === 0) {
+                lista.innerHTML = '<p class="vazio">Nenhum produto cadastrado ainda.</p>';
+                return;
+            }
+
+            lista.innerHTML = produtos.map(p => `
+                <div class="produto-card">
+                    ${p[6] ? `<img src="${p[6]}" alt="${p[1]}">` : ''}
+                    <div class="produto-info">
+                        <h3>${p[1]}</h3>
+                        <p>${p[2]}</p>
+                        <div class="produto-detalhes">
+                            <span class="preco">R$ ${parseFloat(p[3]).toFixed(2)}</span>
+                            <span class="estoque">Estoque: ${p[4]}</span>
+                            <span class="categoria">${p[5]}</span>
+                        </div>
+                    </div>
+                    <button class="deletar" onclick="deletarProduto(${p[0]})">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        async function deletarProduto(id) {
+            if (!confirm('Deseja deletar este produto?')) return;
+            await fetch(`/produtos/${id}`, { method: 'DELETE' });
+            carregarProdutos();
+        }
+    </script>
+</body>
+</html>
