@@ -225,3 +225,39 @@ button[type="submit"]:hover {
     color: #aaa;
     padding: 30px;
 }
+.conexoes {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.conectado {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.desconectado {
+    background: #fff3e0;
+    color: #e65100;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.desconectado:hover {
+    opacity: 0.8;
+}
+
+.opcoes small {
+    color: #aaa;
+    font-size: 0.75rem;
+}

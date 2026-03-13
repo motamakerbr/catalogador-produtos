@@ -10,6 +10,13 @@
     <header>
         <h1>🛒 Catalogador de Produtos</h1>
         <p>Cadastre seus produtos e publique em todos os marketplaces</p>
+        <div class="conexoes">
+            {% if ml_conectado %}
+                <span class="badge conectado">✅ Mercado Livre Conectado</span>
+            {% else %}
+                <a href="/conectar/mercadolivre" class="badge desconectado">🔗 Conectar Mercado Livre</a>
+            {% endif %}
+        </div>
     </header>
 
     <main>
@@ -54,10 +61,10 @@
                 <div class="marketplaces">
                     <h3>Publicar em:</h3>
                     <div class="opcoes">
-                        <label><input type="checkbox" value="mercadolivre"> Mercado Livre</label>
-                        <label><input type="checkbox" value="shopee"> Shopee</label>
-                        <label><input type="checkbox" value="amazon"> Amazon</label>
-                        <label><input type="checkbox" value="magalu"> Magalu</label>
+                        <label><input type="checkbox" value="mercadolivre" {% if not ml_conectado %}disabled{% endif %}> Mercado Livre {% if not ml_conectado %}<small>(não conectado)</small>{% endif %}</label>
+                        <label><input type="checkbox" value="shopee" disabled> Shopee <small>(em breve)</small></label>
+                        <label><input type="checkbox" value="amazon" disabled> Amazon <small>(em breve)</small></label>
+                        <label><input type="checkbox" value="magalu" disabled> Magalu <small>(em breve)</small></label>
                     </div>
                 </div>
 
@@ -72,11 +79,13 @@
     </main>
 
     <script>
-        // Carregar produtos ao abrir a página
         carregarProdutos();
 
         document.getElementById('formProduto').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            const marketplacesSelecionados = [...document.querySelectorAll('.opcoes input:checked')]
+                .map(cb => cb.value);
 
             const produto = {
                 nome: document.getElementById('nome').value,
@@ -84,8 +93,13 @@
                 preco: parseFloat(document.getElementById('preco').value),
                 estoque: parseInt(document.getElementById('estoque').value),
                 categoria: document.getElementById('categoria').value,
-                imagem_url: document.getElementById('imagem_url').value
+                imagem_url: document.getElementById('imagem_url').value,
+                marketplaces: marketplacesSelecionados
             };
+
+            const btn = document.querySelector('button[type="submit"]');
+            btn.textContent = 'Cadastrando...';
+            btn.disabled = true;
 
             const resposta = await fetch('/produtos', {
                 method: 'POST',
@@ -94,9 +108,17 @@
             });
 
             const resultado = await resposta.json();
+            btn.textContent = 'Cadastrar Produto';
+            btn.disabled = false;
 
             if (resultado.success) {
-                alert('Produto cadastrado com sucesso!');
+                let msg = '✅ Produto cadastrado com sucesso!';
+                if (resultado.resultados?.mercadolivre?.success) {
+                    msg += `\n🟡 Mercado Livre: publicado! ID: ${resultado.resultados.mercadolivre.item_id}`;
+                } else if (resultado.resultados?.mercadolivre) {
+                    msg += `\n❌ Mercado Livre: erro ao publicar`;
+                }
+                alert(msg);
                 document.getElementById('formProduto').reset();
                 carregarProdutos();
             }
