@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, jsonify, redirect, session
 import sqlite3
 import os
 import requests
+import secrets
+import hashlib
+import base64
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'chave-secreta-local')
@@ -28,6 +31,10 @@ def init_db():
                   access_token TEXT,
                   refresh_token TEXT,
                   user_id TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS pkce_temp
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  code_verifier TEXT,
+                  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
 
@@ -113,17 +120,21 @@ def publicar_mercadolivre(produto_id, data):
     else:
         return {'success': False, 'erro': resposta.json()}
 
-import secrets
-import hashlib
-import base64
-
 @app.route('/conectar/mercadolivre')
 def conectar_mercadolivre():
     code_verifier = secrets.token_urlsafe(64)
-    session['code_verifier'] = code_verifier
+
+    conn = sqlite3.connect('produtos.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM pkce_temp")
+    c.execute("INSERT INTO pkce_temp (code_verifier) VALUES (?)", (code_verifier,))
+    conn.commit()
+    conn.close()
+
     code_challenge = base64.urlsafe_b64encode(
         hashlib.sha256(code_verifier.encode()).digest()
     ).rstrip(b'=').decode()
+
     url = (f"https://auth.mercadolivre.com.br/authorization"
            f"?response_type=code"
            f"&client_id={ML_APP_ID}"
@@ -138,7 +149,16 @@ def callback():
     if not code:
         return "Erro na autenticação", 400
 
-    code_verifier = session.get('code_verifier')
+    conn = sqlite3.connect('produtos.db')
+    c = conn.cursor()
+    c.execute("SELECT code_verifier FROM pkce_temp ORDER BY id DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return "Erro: code_verifier não encontrado", 400
+
+    code_verifier = row[0]
 
     resposta = requests.post('https://api.mercadolibre.com/oauth/token', data={
         'grant_type': 'authorization_code',
