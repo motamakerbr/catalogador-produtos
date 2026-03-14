@@ -157,14 +157,3 @@ def deletar_produto(id):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-```
-
-Salva com **Cmd + S**, depois no terminal:
-```
-git add .
-```
-```
-git commit -m "corrige indentacao app.py"
-```
-```
-git push
