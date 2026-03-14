@@ -113,9 +113,23 @@ def publicar_mercadolivre(produto_id, data):
     else:
         return {'success': False, 'erro': resposta.json()}
 
+import secrets
+import hashlib
+import base64
+
 @app.route('/conectar/mercadolivre')
 def conectar_mercadolivre():
-    url = f"https://auth.mercadolivre.com.br/authorization?response_type=code&client_id={ML_APP_ID}&redirect_uri={ML_REDIRECT_URI}"
+    code_verifier = secrets.token_urlsafe(64)
+    session['code_verifier'] = code_verifier
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).rstrip(b'=').decode()
+    url = (f"https://auth.mercadolivre.com.br/authorization"
+           f"?response_type=code"
+           f"&client_id={ML_APP_ID}"
+           f"&redirect_uri={ML_REDIRECT_URI}"
+           f"&code_challenge={code_challenge}"
+           f"&code_challenge_method=S256")
     return redirect(url)
 
 @app.route('/callback')
@@ -124,12 +138,15 @@ def callback():
     if not code:
         return "Erro na autenticação", 400
 
+    code_verifier = session.get('code_verifier')
+
     resposta = requests.post('https://api.mercadolibre.com/oauth/token', data={
         'grant_type': 'authorization_code',
         'client_id': ML_APP_ID,
         'client_secret': ML_SECRET_KEY,
         'code': code,
-        'redirect_uri': ML_REDIRECT_URI
+        'redirect_uri': ML_REDIRECT_URI,
+        'code_verifier': code_verifier
     })
 
     if resposta.status_code == 200:
