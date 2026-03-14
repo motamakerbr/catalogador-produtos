@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, session
 import sqlite3
 import os
 import requests
@@ -23,13 +23,15 @@ def init_db():
                   imagem_url TEXT,
                   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS tokens
-                 (id INTEGER PRIMARY KEY,
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   plataforma TEXT,
                   access_token TEXT,
                   refresh_token TEXT,
                   user_id TEXT)''')
     conn.commit()
     conn.close()
+
+init_db()
 
 @app.route('/')
 def index():
@@ -152,8 +154,17 @@ def deletar_produto(id):
     conn.close()
     return jsonify({'success': True})
 
-init_db()
-
-if __name__ == '__main__':\
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+```
+
+Salva com **Cmd + S**, depois no terminal:
+```
+git add .
+```
+```
+git commit -m "corrige indentacao app.py"
+```
+```
+git push
