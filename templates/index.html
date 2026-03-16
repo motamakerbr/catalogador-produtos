@@ -5,45 +5,249 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catalogador de Produtos</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <header>
-        <h1>🛒 Catalogador de Produtos</h1>
-        <p>Cadastre seus produtos e publique em todos os marketplaces</p>
-        <div class="conexoes">
-            {% if ml_conectado %}
-                <span class="badge conectado">✅ Mercado Livre Conectado</span>
-            {% else %}
-                <a href="/conectar/mercadolivre" class="badge desconectado">🔗 Conectar Mercado Livre</a>
-            {% endif %}
-        </div>
-    </header>
+<body class="tema-claro">
 
-    <main>
-        <section class="formulario">
-            <h2>Cadastrar Novo Produto</h2>
-            <form id="formProduto">
-                <div class="campo">
+<div class="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>🛒 Catalogador</h1>
+            <button class="btn-tema" onclick="trocarTema()" title="Trocar tema">
+                <i class="fas fa-moon" id="icon-tema"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item ativo" onclick="mostrarSecao('dashboard')">
+                <i class="fas fa-chart-pie"></i> Dashboard
+            </a>
+            <a href="#" class="nav-item" onclick="mostrarSecao('produtos')">
+                <i class="fas fa-box"></i> Produtos
+            </a>
+            <a href="#" class="nav-item" onclick="mostrarSecao('fotos')">
+                <i class="fas fa-images"></i> Biblioteca de Fotos
+            </a>
+            <a href="#" class="nav-item" onclick="mostrarSecao('catalogos')">
+                <i class="fas fa-folder"></i> Catálogos
+            </a>
+            <a href="#" class="nav-item" onclick="mostrarSecao('marketplaces')">
+                <i class="fas fa-store"></i> Marketplaces
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">{{ user_nome[0] | upper }}</div>
+                <span>{{ user_nome }}</span>
+            </div>
+            <a href="/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+        <!-- TOPBAR -->
+        <div class="topbar">
+            <button class="btn-menu" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-titulo" id="topbar-titulo">Dashboard</div>
+            <div class="topbar-acoes">
+                {% if ml_conectado %}
+                <span class="badge-conectado"><i class="fas fa-check-circle"></i> ML Conectado</span>
+                {% else %}
+                <a href="/conectar/mercadolivre" class="badge-desconectado">
+                    <i class="fas fa-link"></i> Conectar ML
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <section id="secao-dashboard" class="secao ativa">
+            <div class="page-header">
+                <h2>Dashboard</h2>
+                <p>Visão geral do seu catálogo</p>
+            </div>
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#e0e7ff;color:#4f46e5">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-produtos">-</span>
+                        <span class="stat-label">Produtos</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fce7f3;color:#db2777">
+                        <i class="fas fa-folder"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-catalogos">-</span>
+                        <span class="stat-label">Catálogos</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#dcfce7;color:#16a34a">
+                        <i class="fas fa-images"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-fotos">-</span>
+                        <span class="stat-label">Fotos</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fef3c7;color:#d97706">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-ml">-</span>
+                        <span class="stat-label">Mercado Livre</span>
+                    </div>
+                </div>
+            </div>
+            <div class="catalogos-preview" id="catalogos-preview"></div>
+        </section>
+
+        <!-- PRODUTOS -->
+        <section id="secao-produtos" class="secao">
+            <div class="page-header">
+                <div>
+                    <h2>Produtos</h2>
+                    <p>Gerencie seu catálogo de produtos</p>
+                </div>
+                <button class="btn-primary" onclick="abrirModalProduto()">
+                    <i class="fas fa-plus"></i> Novo Produto
+                </button>
+            </div>
+            <div class="filtros">
+                <select id="filtro-catalogo" class="select-filtro" onchange="carregarProdutos()">
+                    <option value="">Todos os catálogos</option>
+                </select>
+                <input type="text" id="busca-produto" class="input-busca"
+                       placeholder="🔍 Buscar produto..." oninput="filtrarProdutos()">
+            </div>
+            <div class="produtos-grid" id="produtos-grid"></div>
+        </section>
+
+        <!-- FOTOS -->
+        <section id="secao-fotos" class="secao">
+            <div class="page-header">
+                <div>
+                    <h2>Biblioteca de Fotos</h2>
+                    <p>Faça upload e gerencie suas fotos</p>
+                </div>
+                <label class="btn-primary" style="cursor:pointer;">
+                    <i class="fas fa-upload"></i> Upload de Fotos
+                    <input type="file" id="input-upload" multiple accept="image/*"
+                           style="display:none" onchange="uploadFotos(this)">
+                </label>
+            </div>
+            <div class="upload-area" id="upload-area"
+                 ondrop="dropFotos(event)" ondragover="event.preventDefault()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Arraste fotos aqui ou clique no botão acima</p>
+            </div>
+            <div class="fotos-grid" id="fotos-biblioteca"></div>
+        </section>
+
+        <!-- CATÁLOGOS -->
+        <section id="secao-catalogos" class="secao">
+            <div class="page-header">
+                <div>
+                    <h2>Catálogos</h2>
+                    <p>Organize seus produtos em catálogos</p>
+                </div>
+                <button class="btn-primary" onclick="abrirModalCatalogo()">
+                    <i class="fas fa-plus"></i> Novo Catálogo
+                </button>
+            </div>
+            <div class="catalogos-grid" id="catalogos-grid"></div>
+        </section>
+
+        <!-- MARKETPLACES -->
+        <section id="secao-marketplaces" class="secao">
+            <div class="page-header">
+                <h2>Marketplaces</h2>
+                <p>Gerencie suas integrações</p>
+            </div>
+            <div class="marketplaces-grid">
+                <div class="marketplace-card {% if ml_conectado %}conectado{% endif %}">
+                    <div class="mp-logo" style="background:#fff200;color:#333">ML</div>
+                    <div class="mp-info">
+                        <h3>Mercado Livre</h3>
+                        {% if ml_conectado %}
+                        <span class="mp-status ok"><i class="fas fa-check-circle"></i> Conectado</span>
+                        {% else %}
+                        <span class="mp-status pendente"><i class="fas fa-clock"></i> Não conectado</span>
+                        {% endif %}
+                    </div>
+                    {% if ml_conectado %}
+                    <button class="btn-secondary">Gerenciar</button>
+                    {% else %}
+                    <a href="/conectar/mercadolivre" class="btn-primary">Conectar</a>
+                    {% endif %}
+                </div>
+                <div class="marketplace-card">
+                    <div class="mp-logo" style="background:#ee4d2d;color:white">SP</div>
+                    <div class="mp-info">
+                        <h3>Shopee</h3>
+                        <span class="mp-status pendente"><i class="fas fa-clock"></i> Aguardando aprovação</span>
+                    </div>
+                    <button class="btn-secondary" disabled>Em breve</button>
+                </div>
+                <div class="marketplace-card">
+                    <div class="mp-logo" style="background:#ff9900;color:white">AZ</div>
+                    <div class="mp-info">
+                        <h3>Amazon</h3>
+                        <span class="mp-status pendente"><i class="fas fa-clock"></i> Aguardando aprovação</span>
+                    </div>
+                    <button class="btn-secondary" disabled>Em breve</button>
+                </div>
+                <div class="marketplace-card">
+                    <div class="mp-logo" style="background:#0086ff;color:white">MG</div>
+                    <div class="mp-info">
+                        <h3>Magalu</h3>
+                        <span class="mp-status pendente"><i class="fas fa-clock"></i> Aguardando aprovação</span>
+                    </div>
+                    <button class="btn-secondary" disabled>Em breve</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- MODAL PRODUTO -->
+<div class="modal-overlay" id="modal-produto">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-box"></i> Novo Produto</h3>
+            <button onclick="fecharModal('modal-produto')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="campo full">
                     <label>Nome do Produto *</label>
-                    <input type="text" id="nome" placeholder="Ex: Tênis Nike Air Max" required>
+                    <input type="text" id="p-nome" placeholder="Ex: Tênis Nike Air Max">
+                </div>
+                <div class="campo full">
+                    <label>Descrição *</label>
+                    <textarea id="p-descricao" placeholder="Descreva o produto..."></textarea>
                 </div>
                 <div class="campo">
-                    <label>Descrição *</label>
-                    <textarea id="descricao" placeholder="Descreva o produto detalhadamente..." required></textarea>
+                    <label>Preço (R$) *</label>
+                    <input type="number" id="p-preco" placeholder="0,00" step="0.01">
                 </div>
-                <div class="linha">
-                    <div class="campo">
-                        <label>Preço (R$) *</label>
-                        <input type="number" id="preco" placeholder="0,00" step="0.01" required>
-                    </div>
-                    <div class="campo">
-                        <label>Estoque *</label>
-                        <input type="number" id="estoque" placeholder="0" required>
-                    </div>
+                <div class="campo">
+                    <label>Estoque *</label>
+                    <input type="number" id="p-estoque" placeholder="0">
                 </div>
                 <div class="campo">
                     <label>Categoria *</label>
-                    <select id="categoria" required>
+                    <select id="p-categoria">
                         <option value="">Selecione...</option>
                         <option value="eletronicos">Eletrônicos</option>
                         <option value="roupas">Roupas e Calçados</option>
@@ -54,108 +258,389 @@
                     </select>
                 </div>
                 <div class="campo">
-                    <label>URL da Imagem</label>
-                    <input type="text" id="imagem_url" placeholder="https://...">
+                    <label>Catálogo</label>
+                    <select id="p-catalogo">
+                        <option value="">Sem catálogo</option>
+                    </select>
                 </div>
-
-                <div class="marketplaces">
-                    <h3>Publicar em:</h3>
-                    <div class="opcoes">
-                        <label><input type="checkbox" value="mercadolivre" {% if not ml_conectado %}disabled{% endif %}> Mercado Livre {% if not ml_conectado %}<small>(não conectado)</small>{% endif %}</label>
-                        <label><input type="checkbox" value="shopee" disabled> Shopee <small>(em breve)</small></label>
-                        <label><input type="checkbox" value="amazon" disabled> Amazon <small>(em breve)</small></label>
-                        <label><input type="checkbox" value="magalu" disabled> Magalu <small>(em breve)</small></label>
+                <div class="campo full">
+                    <label>Fotos do Produto</label>
+                    <div class="fotos-seletor" id="fotos-seletor">
+                        <p style="color:#aaa;font-size:0.85rem;">
+                            Salve o produto primeiro, depois adicione fotos na Biblioteca
+                        </p>
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal('modal-produto')">Cancelar</button>
+            <button class="btn-primary" onclick="salvarProduto()">
+                <i class="fas fa-save"></i> Salvar Produto
+            </button>
+        </div>
+    </div>
+</div>
 
-                <button type="submit">Cadastrar Produto</button>
-            </form>
-        </section>
-
-        <section class="lista">
-            <h2>Produtos Cadastrados</h2>
-            <div id="listaProdutos"></div>
-        </section>
-    </main>
-
-    <script>
-        carregarProdutos();
-
-        document.getElementById('formProduto').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const marketplacesSelecionados = [...document.querySelectorAll('.opcoes input:checked')]
-                .map(cb => cb.value);
-
-            const produto = {
-                nome: document.getElementById('nome').value,
-                descricao: document.getElementById('descricao').value,
-                preco: parseFloat(document.getElementById('preco').value),
-                estoque: parseInt(document.getElementById('estoque').value),
-                categoria: document.getElementById('categoria').value,
-                imagem_url: document.getElementById('imagem_url').value,
-                marketplaces: marketplacesSelecionados
-            };
-
-            const btn = document.querySelector('button[type="submit"]');
-            btn.textContent = 'Cadastrando...';
-            btn.disabled = true;
-
-            const resposta = await fetch('/produtos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(produto)
-            });
-
-            const resultado = await resposta.json();
-            btn.textContent = 'Cadastrar Produto';
-            btn.disabled = false;
-
-            if (resultado.success) {
-                let msg = '✅ Produto cadastrado com sucesso!';
-                if (resultado.resultados?.mercadolivre?.success) {
-                    msg += `\n🟡 Mercado Livre: publicado! ID: ${resultado.resultados.mercadolivre.item_id}`;
-                } else if (resultado.resultados?.mercadolivre) {
-                    msg += `\n❌ Mercado Livre: erro ao publicar`;
-                }
-                alert(msg);
-                document.getElementById('formProduto').reset();
-                carregarProdutos();
-            }
-        });
-
-        async function carregarProdutos() {
-            const resposta = await fetch('/produtos');
-            const produtos = await resposta.json();
-            const lista = document.getElementById('listaProdutos');
-
-            if (produtos.length === 0) {
-                lista.innerHTML = '<p class="vazio">Nenhum produto cadastrado ainda.</p>';
-                return;
-            }
-
-            lista.innerHTML = produtos.map(p => `
-                <div class="produto-card">
-                    ${p[6] ? `<img src="${p[6]}" alt="${p[1]}">` : ''}
-                    <div class="produto-info">
-                        <h3>${p[1]}</h3>
-                        <p>${p[2]}</p>
-                        <div class="produto-detalhes">
-                            <span class="preco">R$ ${parseFloat(p[3]).toFixed(2)}</span>
-                            <span class="estoque">Estoque: ${p[4]}</span>
-                            <span class="categoria">${p[5]}</span>
-                        </div>
-                    </div>
-                    <button class="deletar" onclick="deletarProduto(${p[0]})">🗑️</button>
+<!-- MODAL CATÁLOGO -->
+<div class="modal-overlay" id="modal-catalogo">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <h3><i class="fas fa-folder"></i> Novo Catálogo</h3>
+            <button onclick="fecharModal('modal-catalogo')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="campo">
+                <label>Nome *</label>
+                <input type="text" id="c-nome" placeholder="Ex: Eletrônicos">
+            </div>
+            <div class="campo">
+                <label>Descrição</label>
+                <input type="text" id="c-descricao" placeholder="Descrição opcional">
+            </div>
+            <div class="campo">
+                <label>Cor</label>
+                <div class="cores-grid">
+                    <div class="cor-opcao ativa" style="background:#667eea"
+                         onclick="selecionarCor('#667eea',this)"></div>
+                    <div class="cor-opcao" style="background:#f59e0b"
+                         onclick="selecionarCor('#f59e0b',this)"></div>
+                    <div class="cor-opcao" style="background:#10b981"
+                         onclick="selecionarCor('#10b981',this)"></div>
+                    <div class="cor-opcao" style="background:#ef4444"
+                         onclick="selecionarCor('#ef4444',this)"></div>
+                    <div class="cor-opcao" style="background:#8b5cf6"
+                         onclick="selecionarCor('#8b5cf6',this)"></div>
+                    <div class="cor-opcao" style="background:#ec4899"
+                         onclick="selecionarCor('#ec4899',this)"></div>
+                    <div class="cor-opcao" style="background:#06b6d4"
+                         onclick="selecionarCor('#06b6d4',this)"></div>
+                    <div class="cor-opcao" style="background:#f97316"
+                         onclick="selecionarCor('#f97316',this)"></div>
                 </div>
-            `).join('');
-        }
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal('modal-catalogo')">Cancelar</button>
+            <button class="btn-primary" onclick="salvarCatalogo()">
+                <i class="fas fa-save"></i> Salvar
+            </button>
+        </div>
+    </div>
+</div>
 
-        async function deletarProduto(id) {
-            if (!confirm('Deseja deletar este produto?')) return;
-            await fetch(`/produtos/${id}`, { method: 'DELETE' });
-            carregarProdutos();
-        }
-    </script>
+<script>
+let corSelecionada = '#667eea';
+let todosProdutos = [];
+let fotosUploadadas = [];
+
+// ── TEMA ──
+function trocarTema() {
+    const body = document.body;
+    const icon = document.getElementById('icon-tema');
+    if (body.classList.contains('tema-claro')) {
+        body.classList.replace('tema-claro', 'tema-escuro');
+        icon.className = 'fas fa-sun';
+        localStorage.setItem('tema', 'escuro');
+    } else {
+        body.classList.replace('tema-escuro', 'tema-claro');
+        icon.className = 'fas fa-moon';
+        localStorage.setItem('tema', 'claro');
+    }
+}
+if (localStorage.getItem('tema') === 'escuro') {
+    document.body.classList.replace('tema-claro', 'tema-escuro');
+    document.getElementById('icon-tema').className = 'fas fa-sun';
+}
+
+// ── SIDEBAR ──
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('aberta');
+}
+
+// ── NAVEGAÇÃO ──
+function mostrarSecao(nome) {
+    document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
+    document.getElementById('secao-' + nome).classList.add('ativa');
+    event.currentTarget.classList.add('ativo');
+    document.getElementById('topbar-titulo').textContent =
+        {dashboard:'Dashboard',produtos:'Produtos',fotos:'Biblioteca de Fotos',
+         catalogos:'Catálogos',marketplaces:'Marketplaces'}[nome];
+    if (nome === 'dashboard') carregarDashboard();
+    if (nome === 'produtos') carregarProdutos();
+    if (nome === 'fotos') carregarFotos();
+    if (nome === 'catalogos') carregarCatalogos();
+    document.getElementById('sidebar').classList.remove('aberta');
+}
+
+// ── DASHBOARD ──
+async function carregarDashboard() {
+    const res = await fetch('/dashboard');
+    const d = await res.json();
+    document.getElementById('stat-produtos').textContent = d.total_produtos;
+    document.getElementById('stat-catalogos').textContent = d.total_catalogos;
+    document.getElementById('stat-fotos').textContent = d.total_fotos;
+    document.getElementById('stat-ml').textContent = d.ml_conectado ? '✅' : '❌';
+    const prev = document.getElementById('catalogos-preview');
+    if (d.por_catalogo.length) {
+        prev.innerHTML = '<h3 style="margin-bottom:16px;">Produtos por Catálogo</h3>' +
+            d.por_catalogo.map(c => `
+            <div class="catalogo-bar">
+                <div class="catalogo-bar-nome">
+                    <span class="dot" style="background:${c.cor}"></span>${c.nome}
+                </div>
+                <div class="bar-wrap">
+                    <div class="bar-fill" style="width:${Math.min(c.total*10,100)}%;background:${c.cor}"></div>
+                </div>
+                <span class="bar-num">${c.total}</span>
+            </div>`).join('');
+    }
+}
+
+// ── CATÁLOGOS ──
+async function carregarCatalogos() {
+    const res = await fetch('/catalogos');
+    const cats = await res.json();
+    const grid = document.getElementById('catalogos-grid');
+    const filtro = document.getElementById('filtro-catalogo');
+    const selProd = document.getElementById('p-catalogo');
+
+    filtro.innerHTML = '<option value="">Todos os catálogos</option>';
+    selProd.innerHTML = '<option value="">Sem catálogo</option>';
+    cats.forEach(c => {
+        filtro.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+        selProd.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+    });
+
+    if (!cats.length) {
+        grid.innerHTML = '<div class="empty"><i class="fas fa-folder-open"></i><p>Nenhum catálogo criado</p></div>';
+        return;
+    }
+    grid.innerHTML = cats.map(c => `
+        <div class="catalogo-card" style="border-top:4px solid ${c.cor}">
+            <div class="catalogo-card-header">
+                <div class="catalogo-icon" style="background:${c.cor}20;color:${c.cor}">
+                    <i class="fas fa-folder"></i>
+                </div>
+                <button class="btn-icon danger" onclick="deletarCatalogo(${c.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <h3>${c.nome}</h3>
+            <p>${c.descricao || 'Sem descrição'}</p>
+            <button class="btn-secondary" onclick="verCatalogo(${c.id},'${c.nome}')">
+                <i class="fas fa-eye"></i> Ver Produtos
+            </button>
+        </div>`).join('');
+}
+
+function abrirModalCatalogo() {
+    document.getElementById('c-nome').value = '';
+    document.getElementById('c-descricao').value = '';
+    document.getElementById('modal-catalogo').classList.add('aberto');
+}
+
+function selecionarCor(cor, el) {
+    corSelecionada = cor;
+    document.querySelectorAll('.cor-opcao').forEach(c => c.classList.remove('ativa'));
+    el.classList.add('ativa');
+}
+
+async function salvarCatalogo() {
+    const nome = document.getElementById('c-nome').value;
+    if (!nome) return alert('Nome é obrigatório!');
+    await fetch('/catalogos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nome,
+            descricao: document.getElementById('c-descricao').value,
+            cor: corSelecionada
+        })
+    });
+    fecharModal('modal-catalogo');
+    carregarCatalogos();
+}
+
+async function deletarCatalogo(id) {
+    if (!confirm('Deletar catálogo?')) return;
+    await fetch(`/catalogos/${id}`, { method: 'DELETE' });
+    carregarCatalogos();
+}
+
+function verCatalogo(id, nome) {
+    mostrarSecaoDir('produtos');
+    document.getElementById('filtro-catalogo').value = id;
+    carregarProdutos();
+}
+
+function mostrarSecaoDir(nome) {
+    document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('ativo'));
+    document.getElementById('secao-' + nome).classList.add('ativa');
+}
+
+// ── PRODUTOS ──
+async function carregarProdutos() {
+    const catId = document.getElementById('filtro-catalogo').value;
+    const url = catId ? `/produtos?catalogo_id=${catId}` : '/produtos';
+    const res = await fetch(url);
+    todosProdutos = await res.json();
+    renderProdutos(todosProdutos);
+}
+
+function filtrarProdutos() {
+    const busca = document.getElementById('busca-produto').value.toLowerCase();
+    const filtrados = todosProdutos.filter(p =>
+        p.nome.toLowerCase().includes(busca) ||
+        (p.descricao && p.descricao.toLowerCase().includes(busca))
+    );
+    renderProdutos(filtrados);
+}
+
+function renderProdutos(produtos) {
+    const grid = document.getElementById('produtos-grid');
+    if (!produtos.length) {
+        grid.innerHTML = '<div class="empty"><i class="fas fa-box-open"></i><p>Nenhum produto encontrado</p></div>';
+        return;
+    }
+    grid.innerHTML = produtos.map(p => `
+        <div class="produto-card">
+            <div class="produto-foto">
+                ${p.foto_principal
+                    ? `<img src="${p.foto_principal}" alt="${p.nome}">`
+                    : `<div class="foto-placeholder"><i class="fas fa-image"></i></div>`}
+                ${p.catalogo_nome
+                    ? `<span class="produto-catalogo" style="background:${p.catalogo_cor}">${p.catalogo_nome}</span>`
+                    : ''}
+            </div>
+            <div class="produto-info">
+                <h3>${p.nome}</h3>
+                <p>${p.descricao || ''}</p>
+                <div class="produto-meta">
+                    <span class="preco">R$ ${parseFloat(p.preco).toFixed(2)}</span>
+                    <span class="estoque"><i class="fas fa-cube"></i> ${p.estoque}</span>
+                </div>
+            </div>
+            <div class="produto-acoes">
+                <button class="btn-icon" onclick="verFotosProduto(${p.id})">
+                    <i class="fas fa-images"></i>
+                </button>
+                <button class="btn-icon danger" onclick="deletarProduto(${p.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>`).join('');
+}
+
+function abrirModalProduto() {
+    document.getElementById('p-nome').value = '';
+    document.getElementById('p-descricao').value = '';
+    document.getElementById('p-preco').value = '';
+    document.getElementById('p-estoque').value = '';
+    document.getElementById('p-categoria').value = '';
+    carregarCatalogos();
+    document.getElementById('modal-produto').classList.add('aberto');
+}
+
+async function salvarProduto() {
+    const nome = document.getElementById('p-nome').value;
+    const preco = document.getElementById('p-preco').value;
+    const estoque = document.getElementById('p-estoque').value;
+    const categoria = document.getElementById('p-categoria').value;
+    if (!nome || !preco || !estoque || !categoria) return alert('Preencha todos os campos obrigatórios!');
+    await fetch('/produtos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nome,
+            descricao: document.getElementById('p-descricao').value,
+            preco: parseFloat(preco),
+            estoque: parseInt(estoque),
+            categoria,
+            catalogo_id: document.getElementById('p-catalogo').value || null
+        })
+    });
+    fecharModal('modal-produto');
+    carregarProdutos();
+}
+
+async function deletarProduto(id) {
+    if (!confirm('Deletar produto?')) return;
+    await fetch(`/produtos/${id}`, { method: 'DELETE' });
+    carregarProdutos();
+}
+
+// ── FOTOS ──
+async function carregarFotos() {
+    const res = await fetch('/fotos/0');
+    // Mostra área de upload
+}
+
+async function uploadFotos(input) {
+    const files = input.files;
+    const area = document.getElementById('upload-area');
+    area.innerHTML = '<i class="fas fa-spinner fa-spin"></i><p>Enviando fotos...</p>';
+
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('foto', file);
+        const res = await fetch('/fotos/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) fotosUploadadas.push(data);
+    }
+
+    area.innerHTML = `<i class="fas fa-check-circle" style="color:#10b981"></i><p>${files.length} foto(s) enviada(s) com sucesso!</p>`;
+    renderFotos();
+}
+
+async function dropFotos(e) {
+    e.preventDefault();
+    const input = document.getElementById('input-upload');
+    input.files = e.dataTransfer.files;
+    await uploadFotos(input);
+}
+
+function renderFotos() {
+    const grid = document.getElementById('fotos-biblioteca');
+    grid.innerHTML = fotosUploadadas.map((f, i) => `
+        <div class="foto-card">
+            <img src="${f.url}" alt="Foto ${i+1}">
+            <div class="foto-overlay">
+                <button class="btn-foto" onclick="copiarUrl('${f.url}')">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>`).join('');
+}
+
+function copiarUrl(url) {
+    navigator.clipboard.writeText(url);
+    alert('URL copiada!');
+}
+
+function verFotosProduto(id) {
+    mostrarSecaoDir('fotos');
+}
+
+// ── MODAIS ──
+function abrirModalProduto() {
+    document.getElementById('modal-produto').classList.add('aberto');
+    carregarCatalogos();
+}
+
+function fecharModal(id) {
+    document.getElementById(id).classList.remove('aberto');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+    o.addEventListener('click', e => { if (e.target === o) o.classList.remove('aberto'); });
+});
+
+// ── INIT ──
+carregarDashboard();
+carregarCatalogos();
+</script>
 </body>
 </html>
