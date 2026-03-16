@@ -25,16 +25,16 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
     import urllib.parse
-    r = urllib.parse.urlparse(DATABASE_URL)
+    url = DATABASE_URL
+    r = urllib.parse.urlparse(url)
     conn = pg.connect(
         host=r.hostname,
         port=r.port or 5432,
-        database=r.path[1:],
-        user=r.username,
+        database=r.path.lstrip('/'),
+        user=r.username or 'postgres',
         password=r.password,
         ssl_context=False
     )
-    conn.row_factory = pg.Row
     return conn
 
 def init_db():
