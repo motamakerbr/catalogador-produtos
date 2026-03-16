@@ -35,6 +35,11 @@
             <a href="#" class="nav-item" onclick="mostrarSecao('marketplaces')">
                 <i class="fas fa-store"></i> Marketplaces
             </a>
+                        {% if user_nivel == 'admin' %}
+            <a href="/admin/usuarios" class="nav-item">
+                <i class="fas fa-users"></i> Usuários
+            </a>
+            {% endif %}
         </nav>
 
         <div class="sidebar-footer">
