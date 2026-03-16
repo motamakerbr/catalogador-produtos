@@ -115,6 +115,23 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def chamar_groq(prompt):
+    resposta = requests.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
+        json={
+            'model': 'llama-3.3-70b-versatile',
+            'messages': [{'role': 'user', 'content': prompt}],
+            'temperature': 0.7
+        }
+    )
+    dados = resposta.json()
+    if 'choices' not in dados:
+        raise Exception(str(dados))
+    texto = dados['choices'][0]['message']['content']
+    texto = texto.replace('```json', '').replace('```', '').strip()
+    return json.loads(texto)
+
 # ── AUTH ──
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -482,7 +499,7 @@ def dashboard():
         'por_catalogo': por_catalogo
     })
 
-# ── IA GEMINI ──
+# ── IA GROQ ──
 @app.route('/ia/gerar-anuncio', methods=['POST'])
 def gerar_anuncio():
     data = request.json
@@ -520,21 +537,7 @@ Responda APENAS em JSON válido com esta estrutura:
 }}"""
 
     try:
-resposta = requests.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
-            json={
-                'model': 'llama-3.3-70b-versatile',
-                'messages': [{'role': 'user', 'content': prompt}],
-                'temperature': 0.7
-            }
-        )
-        dados = resposta.json()
-        if 'choices' not in dados:
-            return jsonify({'success': False, 'erro': str(dados)})
-        texto = dados['choices'][0]['message']['content']
-        texto = texto.replace('```json', '').replace('```', '').strip()
-        resultado = json.loads(texto)
+        resultado = chamar_groq(prompt)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
@@ -563,21 +566,7 @@ Responda APENAS em JSON válido:
 }}"""
 
     try:
-resposta = requests.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
-            json={
-                'model': 'llama-3.3-70b-versatile',
-                'messages': [{'role': 'user', 'content': prompt}],
-                'temperature': 0.7
-            }
-        )
-        dados = resposta.json()
-        if 'choices' not in dados:
-            return jsonify({'success': False, 'erro': str(dados)})
-        texto = dados['choices'][0]['message']['content']
-        texto = texto.replace('```json', '').replace('```', '').strip()
-        resultado = json.loads(texto)
+        resultado = chamar_groq(prompt)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
