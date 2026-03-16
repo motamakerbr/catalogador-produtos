@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, session
 import os
+import json
 import requests
 import secrets
 import hashlib
@@ -21,6 +22,7 @@ cloudinary.config(
 ML_APP_ID = os.environ.get('ML_APP_ID')
 ML_SECRET_KEY = os.environ.get('ML_SECRET_KEY')
 ML_REDIRECT_URI = os.environ.get('ML_REDIRECT_URI')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 def get_db():
     conn = pg.connect(
@@ -479,9 +481,8 @@ def dashboard():
         'ml_conectado': ml_conectado,
         'por_catalogo': por_catalogo
     })
-# ── IA GEMINI ──
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
+# ── IA GEMINI ──
 @app.route('/ia/gerar-anuncio', methods=['POST'])
 def gerar_anuncio():
     data = request.json
@@ -531,7 +532,6 @@ Responda APENAS em JSON válido com esta estrutura:
             return jsonify({'success': False, 'erro': str(dados)})
         texto = dados['candidates'][0]['content']['parts'][0]['text']
         texto = texto.replace('```json', '').replace('```', '').strip()
-        import json
         resultado = json.loads(texto)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
@@ -544,7 +544,7 @@ def sugerir_preco():
     categoria = data.get('categoria', '')
     descricao = data.get('descricao', '')
 
-        prompt = f"""Você é um especialista em precificação de produtos para marketplaces brasileiros.
+    prompt = f"""Você é um especialista em precificação de produtos para marketplaces brasileiros.
 Analise o produto abaixo e sugira uma faixa de preço competitiva:
 
 Nome: {nome}
@@ -570,11 +570,11 @@ Responda APENAS em JSON válido:
             return jsonify({'success': False, 'erro': str(dados)})
         texto = dados['candidates'][0]['content']['parts'][0]['text']
         texto = texto.replace('```json', '').replace('```', '').strip()
-        import json
         resultado = json.loads(texto)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
+
 @app.route('/ia')
 def ia():
     if 'user_id' not in session:
@@ -582,6 +582,7 @@ def ia():
     return render_template('ia.html',
                            user_nome=session.get('user_nome'),
                            user_nivel=session.get('user_nivel'))
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
