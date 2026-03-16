@@ -22,7 +22,7 @@ cloudinary.config(
 ML_APP_ID = os.environ.get('ML_APP_ID')
 ML_SECRET_KEY = os.environ.get('ML_SECRET_KEY')
 ML_REDIRECT_URI = os.environ.get('ML_REDIRECT_URI')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
 def get_db():
     conn = pg.connect(
@@ -520,17 +520,19 @@ Responda APENAS em JSON válido com esta estrutura:
 }}"""
 
     try:
-        resposta = requests.post(
-            f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}',
+resposta = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
             json={
-                'contents': [{'parts': [{'text': prompt}]}],
-                'generationConfig': {'temperature': 0.7}
+                'model': 'llama-3.3-70b-versatile',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': 0.7
             }
         )
         dados = resposta.json()
-        if 'candidates' not in dados:
+        if 'choices' not in dados:
             return jsonify({'success': False, 'erro': str(dados)})
-        texto = dados['candidates'][0]['content']['parts'][0]['text']
+        texto = dados['choices'][0]['message']['content']
         texto = texto.replace('```json', '').replace('```', '').strip()
         resultado = json.loads(texto)
         return jsonify({'success': True, 'resultado': resultado})
@@ -561,14 +563,19 @@ Responda APENAS em JSON válido:
 }}"""
 
     try:
-        resposta = requests.post(
-            f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}',
-            json={'contents': [{'parts': [{'text': prompt}]}]}
+resposta = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
+            json={
+                'model': 'llama-3.3-70b-versatile',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': 0.7
+            }
         )
         dados = resposta.json()
-        if 'candidates' not in dados:
+        if 'choices' not in dados:
             return jsonify({'success': False, 'erro': str(dados)})
-        texto = dados['candidates'][0]['content']['parts'][0]['text']
+        texto = dados['choices'][0]['message']['content']
         texto = texto.replace('```json', '').replace('```', '').strip()
         resultado = json.loads(texto)
         return jsonify({'success': True, 'resultado': resultado})
