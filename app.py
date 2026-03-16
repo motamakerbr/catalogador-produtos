@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, session, url_for
+from flask import Flask, render_template, request, jsonify, redirect, session
 import sqlite3
 import os
 import requests
@@ -7,6 +7,7 @@ import hashlib
 import base64
 import cloudinary
 import cloudinary.uploader
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'chave-secreta-local')
@@ -38,6 +39,7 @@ def init_db():
                   estoque INTEGER,
                   categoria TEXT,
                   catalogo_id INTEGER,
+                  usuario_id INTEGER,
                   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   FOREIGN KEY (catalogo_id) REFERENCES catalogos(id))''')
     c.execute('''CREATE TABLE IF NOT EXISTS fotos
@@ -63,6 +65,9 @@ def init_db():
                   nome TEXT,
                   email TEXT UNIQUE,
                   senha TEXT,
+                  nivel TEXT DEFAULT 'usuario',
+                  ativo INTEGER DEFAULT 1,
+                  ultimo_acesso TIMESTAMP,
                   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
@@ -74,6 +79,32 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def is_admin():
+    if 'user_id' not in session:
+        return False
+    conn = get_db()
+    user = conn.execute('SELECT nivel FROM usuarios WHERE id=?', (session['user_id'],)).fetchone()
+    conn.close()
+    return user and user['nivel'] == 'admin'
+
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'erro': 'Não autorizado'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not is_admin():
+            return jsonify({'success': False, 'erro': 'Acesso negado'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
 # ── AUTH ──
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -81,11 +112,19 @@ def login():
         data = request.json
         conn = get_db()
         user = conn.execute('SELECT * FROM usuarios WHERE email=?', (data['email'],)).fetchone()
-        conn.close()
         if user and user['senha'] == hashlib.sha256(data['senha'].encode()).hexdigest():
+            if not user['ativo']:
+                conn.close()
+                return jsonify({'success': False, 'erro': 'Usuário bloqueado'})
+            conn.execute('UPDATE usuarios SET ultimo_acesso=? WHERE id=?',
+                        (datetime.now().isoformat(), user['id']))
+            conn.commit()
+            conn.close()
             session['user_id'] = user['id']
             session['user_nome'] = user['nome']
+            session['user_nivel'] = user['nivel']
             return jsonify({'success': True})
+        conn.close()
         return jsonify({'success': False, 'erro': 'Email ou senha incorretos'})
     return render_template('login.html')
 
@@ -95,11 +134,13 @@ def registro():
     senha_hash = hashlib.sha256(data['senha'].encode()).hexdigest()
     try:
         conn = get_db()
-        conn.execute('INSERT INTO usuarios (nome, email, senha) VALUES (?,?,?)',
-                     (data['nome'], data['email'], senha_hash))
+        total = conn.execute('SELECT COUNT(*) as t FROM usuarios').fetchone()['t']
+        nivel = 'admin' if total == 0 else 'usuario'
+        conn.execute('INSERT INTO usuarios (nome, email, senha, nivel) VALUES (?,?,?,?)',
+                     (data['nome'], data['email'], senha_hash, nivel))
         conn.commit()
         conn.close()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'nivel': nivel})
     except:
         return jsonify({'success': False, 'erro': 'Email já cadastrado'})
 
@@ -117,7 +158,67 @@ def index():
     ml_conectado = conn.execute("SELECT access_token FROM tokens WHERE plataforma='mercadolivre'").fetchone() is not None
     catalogos = conn.execute('SELECT * FROM catalogos ORDER BY nome').fetchall()
     conn.close()
-    return render_template('index.html', ml_conectado=ml_conectado, catalogos=catalogos, user_nome=session.get('user_nome'))
+    return render_template('index.html',
+                           ml_conectado=ml_conectado,
+                           catalogos=catalogos,
+                           user_nome=session.get('user_nome'),
+                           user_nivel=session.get('user_nivel'))
+
+# ── GESTÃO DE USUÁRIOS ──
+@app.route('/admin/usuarios')
+def admin_usuarios():
+    if not is_admin():
+        return redirect('/')
+    return render_template('admin_usuarios.html',
+                           user_nome=session.get('user_nome'),
+                           user_nivel=session.get('user_nivel'))
+
+@app.route('/api/usuarios', methods=['GET'])
+@admin_required
+def listar_usuarios():
+    conn = get_db()
+    usuarios = conn.execute('SELECT id, nome, email, nivel, ativo, ultimo_acesso, criado_em FROM usuarios ORDER BY criado_em DESC').fetchall()
+    conn.close()
+    return jsonify([dict(u) for u in usuarios])
+
+@app.route('/api/usuarios', methods=['POST'])
+@admin_required
+def criar_usuario():
+    data = request.json
+    senha_hash = hashlib.sha256(data['senha'].encode()).hexdigest()
+    try:
+        conn = get_db()
+        conn.execute('INSERT INTO usuarios (nome, email, senha, nivel) VALUES (?,?,?,?)',
+                     (data['nome'], data['email'], senha_hash, data.get('nivel', 'usuario')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except:
+        return jsonify({'success': False, 'erro': 'Email já cadastrado'})
+
+@app.route('/api/usuarios/<int:id>', methods=['PUT'])
+@admin_required
+def atualizar_usuario(id):
+    data = request.json
+    conn = get_db()
+    if 'nivel' in data:
+        conn.execute('UPDATE usuarios SET nivel=? WHERE id=?', (data['nivel'], id))
+    if 'ativo' in data:
+        conn.execute('UPDATE usuarios SET ativo=? WHERE id=?', (data['ativo'], id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/usuarios/<int:id>', methods=['DELETE'])
+@admin_required
+def deletar_usuario(id):
+    if id == session.get('user_id'):
+        return jsonify({'success': False, 'erro': 'Não é possível deletar seu próprio usuário'})
+    conn = get_db()
+    conn.execute('DELETE FROM usuarios WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 # ── CATÁLOGOS ──
 @app.route('/catalogos', methods=['GET'])
@@ -150,21 +251,41 @@ def deletar_catalogo(id):
 def listar_produtos():
     catalogo_id = request.args.get('catalogo_id')
     conn = get_db()
+    usuario_id = session.get('user_id')
+    nivel = session.get('user_nivel')
     if catalogo_id:
-        produtos = conn.execute('''SELECT p.*, c.nome as catalogo_nome, c.cor as catalogo_cor,
-                                   f.url as foto_principal
-                                   FROM produtos p
-                                   LEFT JOIN catalogos c ON c.id = p.catalogo_id
-                                   LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
-                                   WHERE p.catalogo_id = ?
-                                   ORDER BY p.criado_em DESC''', (catalogo_id,)).fetchall()
+        if nivel == 'admin':
+            produtos = conn.execute('''SELECT p.*, c.nome as catalogo_nome, c.cor as catalogo_cor,
+                                       f.url as foto_principal
+                                       FROM produtos p
+                                       LEFT JOIN catalogos c ON c.id = p.catalogo_id
+                                       LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
+                                       WHERE p.catalogo_id = ?
+                                       ORDER BY p.criado_em DESC''', (catalogo_id,)).fetchall()
+        else:
+            produtos = conn.execute('''SELECT p.*, c.nome as catalogo_nome, c.cor as catalogo_cor,
+                                       f.url as foto_principal
+                                       FROM produtos p
+                                       LEFT JOIN catalogos c ON c.id = p.catalogo_id
+                                       LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
+                                       WHERE p.catalogo_id = ? AND p.usuario_id = ?
+                                       ORDER BY p.criado_em DESC''', (catalogo_id, usuario_id)).fetchall()
     else:
-        produtos = conn.execute('''SELECT p.*, c.nome as catalogo_nome, c.cor as catalogo_cor,
-                                   f.url as foto_principal
-                                   FROM produtos p
-                                   LEFT JOIN catalogos c ON c.id = p.catalogo_id
-                                   LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
-                                   ORDER BY p.criado_em DESC''').fetchall()
+        if nivel == 'admin':
+            produtos = conn.execute('''SELECT p.*, c.nome as catalogo_nome, c.cor as catalogo_cor,
+                                       f.url as foto_principal
+                                       FROM produtos p
+                                       LEFT JOIN catalogos c ON c.id = p.catalogo_id
+                                       LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
+                                       ORDER BY p.criado_em DESC''').fetchall()
+        else:
+            produtos = conn.execute('''SELECT p.*, c.nome as catalogo_nome, c.cor as catalogo_cor,
+                                       f.url as foto_principal
+                                       FROM produtos p
+                                       LEFT JOIN catalogos c ON c.id = p.catalogo_id
+                                       LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
+                                       WHERE p.usuario_id = ?
+                                       ORDER BY p.criado_em DESC''', (usuario_id,)).fetchall()
     conn.close()
     return jsonify([dict(p) for p in produtos])
 
@@ -172,10 +293,11 @@ def listar_produtos():
 def cadastrar_produto():
     data = request.json
     conn = get_db()
-    cursor = conn.execute('''INSERT INTO produtos (nome, descricao, preco, estoque, categoria, catalogo_id)
-                             VALUES (?,?,?,?,?,?)''',
+    cursor = conn.execute('''INSERT INTO produtos (nome, descricao, preco, estoque, categoria, catalogo_id, usuario_id)
+                             VALUES (?,?,?,?,?,?,?)''',
                           (data['nome'], data['descricao'], data['preco'],
-                           data['estoque'], data['categoria'], data.get('catalogo_id')))
+                           data['estoque'], data['categoria'],
+                           data.get('catalogo_id'), session.get('user_id')))
     produto_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -288,7 +410,14 @@ def callback():
 @app.route('/dashboard')
 def dashboard():
     conn = get_db()
-    total_produtos = conn.execute('SELECT COUNT(*) as t FROM produtos').fetchone()['t']
+    usuario_id = session.get('user_id')
+    nivel = session.get('user_nivel')
+    if nivel == 'admin':
+        total_produtos = conn.execute('SELECT COUNT(*) as t FROM produtos').fetchone()['t']
+        total_usuarios = conn.execute('SELECT COUNT(*) as t FROM usuarios').fetchone()['t']
+    else:
+        total_produtos = conn.execute('SELECT COUNT(*) as t FROM produtos WHERE usuario_id=?', (usuario_id,)).fetchone()['t']
+        total_usuarios = None
     total_catalogos = conn.execute('SELECT COUNT(*) as t FROM catalogos').fetchone()['t']
     total_fotos = conn.execute('SELECT COUNT(*) as t FROM fotos').fetchone()['t']
     ml_conectado = conn.execute("SELECT access_token FROM tokens WHERE plataforma='mercadolivre'").fetchone() is not None
@@ -301,6 +430,7 @@ def dashboard():
         'total_produtos': total_produtos,
         'total_catalogos': total_catalogos,
         'total_fotos': total_fotos,
+        'total_usuarios': total_usuarios,
         'ml_conectado': ml_conectado,
         'por_catalogo': [dict(p) for p in por_catalogo]
     })
