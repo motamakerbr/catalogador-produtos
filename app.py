@@ -526,7 +526,10 @@ Responda APENAS em JSON válido com esta estrutura:
                 'generationConfig': {'temperature': 0.7}
             }
         )
-        texto = resposta.json()['candidates'][0]['content']['parts'][0]['text']
+        dados = resposta.json()
+        if 'candidates' not in dados:
+            return jsonify({'success': False, 'erro': str(dados)})
+        texto = dados['candidates'][0]['content']['parts'][0]['text']
         texto = texto.replace('```json', '').replace('```', '').strip()
         import json
         resultado = json.loads(texto)
@@ -557,19 +560,20 @@ Responda APENAS em JSON válido:
   "dicas_precificacao": ["dica1", "dica2"]
 }}"""
 
-    try:
         resposta = requests.post(
             f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}',
             json={'contents': [{'parts': [{'text': prompt}]}]}
         )
-        texto = resposta.json()['candidates'][0]['content']['parts'][0]['text']
+        dados = resposta.json()
+        if 'candidates' not in dados:
+            return jsonify({'success': False, 'erro': str(dados)})
+        texto = dados['candidates'][0]['content']['parts'][0]['text']
         texto = texto.replace('```json', '').replace('```', '').strip()
         import json
         resultado = json.loads(texto)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
-
 @app.route('/ia')
 def ia():
     if 'user_id' not in session:
