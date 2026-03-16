@@ -479,6 +479,97 @@ def dashboard():
         'ml_conectado': ml_conectado,
         'por_catalogo': por_catalogo
     })
+# ── IA GEMINI ──
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+@app.route('/ia/gerar-anuncio', methods=['POST'])
+def gerar_anuncio():
+    data = request.json
+    nome = data.get('nome', '')
+    descricao = data.get('descricao', '')
+    categoria = data.get('categoria', '')
+    preco = data.get('preco', '')
+    marketplace = data.get('marketplace', 'geral')
+
+    regras = {
+        'mercadolivre': 'Mercado Livre Brasil. Título máximo 60 caracteres. Descrição detalhada com bullet points. Destaque frete grátis e garantia.',
+        'shopee': 'Shopee Brasil. Título máximo 120 caracteres. Use emojis. Descrição com hashtags no final.',
+        'amazon': 'Amazon Brasil. Título máximo 200 caracteres. Descrição técnica e detalhada. Bullet points com benefícios.',
+        'magalu': 'Magazine Luiza. Título máximo 100 caracteres. Descrição focada em benefícios para o consumidor.'
+    }
+
+    prompt = f"""Você é um especialista em vendas online no Brasil.
+Crie um anúncio otimizado para {marketplace.upper()} para o seguinte produto:
+
+Nome: {nome}
+Descrição base: {descricao}
+Categoria: {categoria}
+Preço: R$ {preco}
+
+Regras para {marketplace}: {regras.get(marketplace, 'Anúncio geral para marketplace brasileiro.')}
+
+Responda APENAS em JSON válido com esta estrutura:
+{{
+  "titulo": "título otimizado",
+  "descricao": "descrição completa otimizada",
+  "bullet_points": ["ponto 1", "ponto 2", "ponto 3", "ponto 4", "ponto 5"],
+  "palavras_chave": ["palavra1", "palavra2", "palavra3"],
+  "preco_sugerido": 0.00,
+  "dicas": "dica rápida para melhorar o anúncio"
+}}"""
+
+    try:
+        resposta = requests.post(
+            f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}',
+            json={
+                'contents': [{'parts': [{'text': prompt}]}],
+                'generationConfig': {'temperature': 0.7}
+            }
+        )
+        texto = resposta.json()['candidates'][0]['content']['parts'][0]['text']
+        texto = texto.replace('```json', '').replace('```', '').strip()
+        import json
+        resultado = json.loads(texto)
+        return jsonify({'success': True, 'resultado': resultado})
+    except Exception as e:
+        return jsonify({'success': False, 'erro': str(e)})
+
+@app.route('/ia/sugerir-preco', methods=['POST'])
+def sugerir_preco():
+    data = request.json
+    nome = data.get('nome', '')
+    categoria = data.get('categoria', '')
+    descricao = data.get('descricao', '')
+
+    prompt = f"""Você é um especialista em precificação de produtos para marketplaces brasileiros.
+Analise o produto abaixo e sugira uma faixa de preço competitiva:
+
+Nome: {nome}
+Categoria: {categoria}
+Descrição: {descricao}
+
+Responda APENAS em JSON válido:
+{{
+  "preco_minimo": 0.00,
+  "preco_sugerido": 0.00,
+  "preco_maximo": 0.00,
+  "justificativa": "explicação breve",
+  "dicas_precificacao": ["dica1", "dica2"]
+}}"""
+
+    try:
+        resposta = requests.post(
+            f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}',
+            json={'contents': [{'parts': [{'text': prompt}]}]}
+        )
+        texto = resposta.json()['candidates'][0]['content']['parts'][0]['text']
+        texto = texto.replace('```json', '').replace('```', '').strip()
+        import json
+        resultado = json.loads(texto)
+        return jsonify({'success': True, 'resultado': resultado})
+    except Exception as e:
+        return jsonify({'success': False, 'erro': str(e)})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
