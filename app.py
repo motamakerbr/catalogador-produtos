@@ -544,7 +544,7 @@ def sugerir_preco():
     categoria = data.get('categoria', '')
     descricao = data.get('descricao', '')
 
-    prompt = f"""Você é um especialista em precificação de produtos para marketplaces brasileiros.
+        prompt = f"""Você é um especialista em precificação de produtos para marketplaces brasileiros.
 Analise o produto abaixo e sugira uma faixa de preço competitiva:
 
 Nome: {nome}
@@ -560,6 +560,7 @@ Responda APENAS em JSON válido:
   "dicas_precificacao": ["dica1", "dica2"]
 }}"""
 
+    try:
         resposta = requests.post(
             f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}',
             json={'contents': [{'parts': [{'text': prompt}]}]}
