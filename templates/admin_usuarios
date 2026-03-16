@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Usuários</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .usuarios-table { width: 100%; border-collapse: collapse; }
+        .usuarios-table th {
+            background: var(--bg3); color: var(--text2);
+            font-size: 0.78rem; font-weight: 700;
+            padding: 12px 16px; text-align: left;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border);
+        }
+        .usuarios-table td {
+            padding: 14px 16px; border-bottom: 1px solid var(--border);
+            font-size: 0.88rem; color: var(--text);
+        }
+        .usuarios-table tr:hover td { background: var(--bg3); }
+        .badge-nivel {
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 700;
+        }
+        .badge-admin { background: #ede9fe; color: #6d28d9; }
+        .badge-usuario { background: #e0f2fe; color: #0369a1; }
+        .badge-ativo { background: #d1fae5; color: #065f46; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .badge-bloqueado { background: #fee2e2; color: #991b1b; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .acoes-td { display: flex; gap: 8px; align-items: center; }
+        .table-wrap { background: var(--bg2); border-radius: 14px; box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+        .avatar-sm {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; font-weight: 700; font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .user-cell { display: flex; align-items: center; gap: 12px; }
+    </style>
+</head>
+<body class="tema-claro">
+<div class="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>🛒 Catalogador</h1>
+            <button class="btn-tema" onclick="trocarTema()">
+                <i class="fas fa-moon" id="icon-tema"></i>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="/" class="nav-item"><i class="fas fa-box"></i> Produtos</a>
+            <a href="/" class="nav-item"><i class="fas fa-images"></i> Biblioteca de Fotos</a>
+            <a href="/" class="nav-item"><i class="fas fa-folder"></i> Catálogos</a>
+            <a href="/" class="nav-item"><i class="fas fa-store"></i> Marketplaces</a>
+            <a href="/admin/usuarios" class="nav-item ativo"><i class="fas fa-users"></i> Usuários</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">{{ user_nome[0] | upper }}</div>
+                <span>{{ user_nome }}</span>
+            </div>
+            <a href="/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+        <div class="topbar">
+            <button class="btn-menu" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <div class="topbar-titulo">Gestão de Usuários</div>
+            <div class="topbar-acoes">
+                <span class="badge-nivel badge-admin"><i class="fas fa-shield-alt"></i> Admin</span>
+            </div>
+        </div>
+
+        <section class="secao ativa">
+            <div class="page-header">
+                <div>
+                    <h2>Usuários</h2>
+                    <p>Gerencie os usuários do sistema</p>
+                </div>
+                <button class="btn-primary" onclick="abrirModalNovoUsuario()">
+                    <i class="fas fa-user-plus"></i> Novo Usuário
+                </button>
+            </div>
+
+            <!-- STATS -->
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px,1fr))">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#ede9fe;color:#6d28d9"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-total">-</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#d1fae5;color:#065f46"><i class="fas fa-user-check"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-ativos">-</span>
+                        <span class="stat-label">Ativos</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fee2e2;color:#991b1b"><i class="fas fa-user-slash"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-bloqueados">-</span>
+                        <span class="stat-label">Bloqueados</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fce7f3;color:#db2777"><i class="fas fa-shield-alt"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-valor" id="stat-admins">-</span>
+                        <span class="stat-label">Admins</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABELA -->
+            <div class="table-wrap">
+                <table class="usuarios-table">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Email</th>
+                            <th>Nível</th>
+                            <th>Status</th>
+                            <th>Último Acesso</th>
+                            <th>Membro desde</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-usuarios">
+                        <tr><td colspan="7" style="text-align:center;color:var(--text2);padding:30px;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- MODAL NOVO USUÁRIO -->
+<div class="modal-overlay" id="modal-novo-usuario">
+    <div class="modal" style="max-width:440px">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> Novo Usuário</h3>
+            <button onclick="fecharModal('modal-novo-usuario')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="campo" style="margin-bottom:14px">
+                <label>Nome *</label>
+                <input type="text" id="nu-nome" placeholder="Nome completo">
+            </div>
+            <div class="campo" style="margin-bottom:14px">
+                <label>Email *</label>
+                <input type="email" id="nu-email" placeholder="email@exemplo.com">
+            </div>
+            <div class="campo" style="margin-bottom:14px">
+                <label>Senha *</label>
+                <input type="password" id="nu-senha" placeholder="••••••••">
+            </div>
+            <div class="campo" style="margin-bottom:14px">
+                <label>Nível de Acesso</label>
+                <select id="nu-nivel">
+                    <option value="usuario">👤 Usuário</option>
+                    <option value="admin">🛡️ Administrador</option>
+                </select>
+            </div>
+            <div id="nu-msg" style="display:none;padding:10px;border-radius:8px;font-size:0.85rem;margin-top:8px;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal('modal-novo-usuario')">Cancelar</button>
+            <button class="btn-primary" onclick="criarUsuario()">
+                <i class="fas fa-save"></i> Criar Usuário
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── TEMA ──
+    function trocarTema() {
+        const body = document.body;
+        const icon = document.getElementById('icon-tema');
+        if (body.classList.contains('tema-claro')) {
+            body.classList.replace('tema-claro', 'tema-escuro');
+            icon.className = 'fas fa-sun';
+            localStorage.setItem('tema', 'escuro');
+        } else {
+            body.classList.replace('tema-escuro', 'tema-claro');
+            icon.className = 'fas fa-moon';
+            localStorage.setItem('tema', 'claro');
+        }
+    }
+    if (localStorage.getItem('tema') === 'escuro') {
+        document.body.classList.replace('tema-claro', 'tema-escuro');
+        document.getElementById('icon-tema').className = 'fas fa-sun';
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('aberta');
+    }
+
+    function fecharModal(id) {
+        document.getElementById(id).classList.remove('aberto');
+    }
+
+    document.querySelectorAll('.modal-overlay').forEach(o => {
+        o.addEventListener('click', e => { if (e.target === o) o.classList.remove('aberto'); });
+    });
+
+    // ── CARREGAR USUÁRIOS ──
+    async function carregarUsuarios() {
+        const res = await fetch('/api/usuarios');
+        const usuarios = await res.json();
+
+        const total = usuarios.length;
+        const ativos = usuarios.filter(u => u.ativo).length;
+        const bloqueados = usuarios.filter(u => !u.ativo).length;
+        const admins = usuarios.filter(u => u.nivel === 'admin').length;
+
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-ativos').textContent = ativos;
+        document.getElementById('stat-bloqueados').textContent = bloqueados;
+        document.getElementById('stat-admins').textContent = admins;
+
+        const tbody = document.getElementById('tbody-usuarios');
+        if (!usuarios.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:30px;">Nenhum usuário encontrado</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = usuarios.map(u => `
+            <tr>
+                <td>
+                    <div class="user-cell">
+                        <div class="avatar-sm">${u.nome[0].toUpperCase()}</div>
+                        <span style="font-weight:600">${u.nome}</span>
+                    </div>
+                </td>
+                <td style="color:var(--text2)">${u.email}</td>
+                <td>
+                    <span class="badge-nivel ${u.nivel === 'admin' ? 'badge-admin' : 'badge-usuario'}">
+                        ${u.nivel === 'admin' ? '🛡️ Admin' : '👤 Usuário'}
+                    </span>
+                </td>
+                <td>
+                    <span class="${u.ativo ? 'badge-ativo' : 'badge-bloqueado'}">
+                        ${u.ativo ? '✅ Ativo' : '🚫 Bloqueado'}
+                    </span>
+                </td>
+                <td style="color:var(--text2);font-size:0.82rem">
+                    ${u.ultimo_acesso ? formatarData(u.ultimo_acesso) : 'Nunca'}
+                </td>
+                <td style="color:var(--text2);font-size:0.82rem">
+                    ${formatarData(u.criado_em)}
+                </td>
+                <td>
+                    <div class="acoes-td">
+                        <button class="btn-icon" title="Trocar nível"
+                            onclick="trocarNivel(${u.id}, '${u.nivel}')">
+                            <i class="fas fa-shield-alt"></i>
+                        </button>
+                        <button class="btn-icon ${u.ativo ? 'danger' : ''}" title="${u.ativo ? 'Bloquear' : 'Desbloquear'}"
+                            onclick="toggleAtivo(${u.id}, ${u.ativo})">
+                            <i class="fas fa-${u.ativo ? 'lock' : 'unlock'}"></i>
+                        </button>
+                        <button class="btn-icon danger" title="Deletar"
+                            onclick="deletarUsuario(${u.id}, '${u.nome}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function trocarNivel(id, nivelAtual) {
+        const novoNivel = nivelAtual === 'admin' ? 'usuario' : 'admin';
+        const conf = confirm(`Trocar para ${novoNivel === 'admin' ? 'Administrador' : 'Usuário'}?`);
+        if (!conf) return;
+        await fetch(`/api/usuarios/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nivel: novoNivel })
+        });
+        carregarUsuarios();
+    }
+
+    async function toggleAtivo(id, ativo) {
+        const acao = ativo ? 'Bloquear' : 'Desbloquear';
+        if (!confirm(`${acao} este usuário?`)) return;
+        await fetch(`/api/usuarios/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ativo: ativo ? 0 : 1 })
+        });
+        carregarUsuarios();
+    }
+
+    async function deletarUsuario(id, nome) {
+        if (!confirm(`Deletar o usuário "${nome}"? Esta ação não pode ser desfeita!`)) return;
+        const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) return alert(data.erro);
+        carregarUsuarios();
+    }
+
+    function abrirModalNovoUsuario() {
+        document.getElementById('nu-nome').value = '';
+        document.getElementById('nu-email').value = '';
+        document.getElementById('nu-senha').value = '';
+        document.getElementById('nu-nivel').value = 'usuario';
+        document.getElementById('nu-msg').style.display = 'none';
+        document.getElementById('modal-novo-usuario').classList.add('aberto');
+    }
+
+    async function criarUsuario() {
+        const nome = document.getElementById('nu-nome').value;
+        const email = document.getElementById('nu-email').value;
+        const senha = document.getElementById('nu-senha').value;
+        const nivel = document.getElementById('nu-nivel').value;
+        const msg = document.getElementById('nu-msg');
+
+        if (!nome || !email || !senha) {
+            msg.style.cssText = 'display:block;background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px;';
+            msg.textContent = 'Preencha todos os campos!';
+            return;
+        }
+
+        const res = await fetch('/api/usuarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, email, senha, nivel })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            fecharModal('modal-novo-usuario');
+            carregarUsuarios();
+        } else {
+            msg.style.cssText = 'display:block;background:#fee2e2;color:#991b1b;border-radius:8px;padding:10px;';
+            msg.textContent = data.erro;
+        }
+    }
+
+    function formatarData(str) {
+        if (!str) return '-';
+        const d = new Date(str);
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    }
+
+    carregarUsuarios();
+</script>
+</body>
+</html>
