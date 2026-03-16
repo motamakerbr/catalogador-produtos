@@ -468,7 +468,14 @@ def dashboard():
         'ml_conectado': ml_conectado,
         'por_catalogo': [dict(p) for p in por_catalogo]
     })
-
+@app.route('/setup-admin')
+def setup_admin():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE usuarios SET nivel='admin' WHERE id=(SELECT id FROM usuarios ORDER BY id ASC LIMIT 1)")
+    conn.commit()
+    conn.close()
+    return "Primeiro usuário promovido a admin! Faça login novamente."
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
