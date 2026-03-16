@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IA — Catalogador</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .ia-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media(max-width:768px){ .ia-grid { grid-template-columns: 1fr; } }
+        .ia-card { background: var(--bg2); border-radius: 14px; padding: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .ia-card h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .marketplace-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .mp-tab { padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 2px solid var(--border); color: var(--text2); background: var(--bg3); transition: all 0.2s; }
+        .mp-tab.ativo { border-color: var(--primary); color: var(--primary); background: rgba(102,126,234,0.1); }
+        .resultado-box { background: var(--bg3); border-radius: 10px; padding: 16px; margin-top: 16px; display: none; }
+        .resultado-box.visivel { display: block; }
+        .resultado-titulo { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 8px; padding: 10px; background: var(--bg2); border-radius: 8px; border: 1px solid var(--border); }
+        .resultado-desc { font-size: 0.85rem; color: var(--text2); line-height: 1.6; margin-bottom: 12px; white-space: pre-wrap; }
+        .bullet-list { list-style: none; margin-bottom: 12px; }
+        .bullet-list li { padding: 6px 0; font-size: 0.85rem; color: var(--text); display: flex; align-items: flex-start; gap: 8px; }
+        .bullet-list li::before { content: '✅'; flex-shrink: 0; }
+        .keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .keyword { background: rgba(102,126,234,0.1); color: var(--primary); padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+        .dica-box { background: #fef3c7; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: #92400e; display: flex; gap: 8px; align-items: flex-start; }
+        .preco-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .preco-item { text-align: center; background: var(--bg2); border-radius: 10px; padding: 12px; border: 1px solid var(--border); }
+        .preco-item .valor { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .preco-item .label { font-size: 0.72rem; color: var(--text2); margin-top: 3px; }
+        .copiar-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text2); padding: 6px 12px; border-radius: 8px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+        .copiar-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .loading { display: none; text-align: center; padding: 30px; color: var(--text2); }
+        .loading.visivel { display: block; }
+        .loading i { font-size: 2rem; margin-bottom: 10px; display: block; animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .secao-titulo { font-size: 0.72rem; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 14px; }
+    </style>
+</head>
+<body class="tema-claro">
+<div class="app">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>🛒 Catalogador</h1>
+            <button class="btn-tema" onclick="trocarTema()">
+                <i class="fas fa-moon" id="icon-tema"></i>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="/" class="nav-item"><i class="fas fa-box"></i> Produtos</a>
+            <a href="/" class="nav-item"><i class="fas fa-images"></i> Biblioteca de Fotos</a>
+            <a href="/" class="nav-item"><i class="fas fa-folder"></i> Catálogos</a>
+            <a href="/" class="nav-item"><i class="fas fa-store"></i> Marketplaces</a>
+            <a href="/ia" class="nav-item ativo"><i class="fas fa-robot"></i> IA</a>
+            {% if user_nivel == 'admin' %}
+            <a href="/admin/usuarios" class="nav-item"><i class="fas fa-users"></i> Usuários</a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">{{ user_nome[0] | upper }}</div>
+                <span>{{ user_nome }}</span>
+            </div>
+            <a href="/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <button class="btn-menu" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <div class="topbar-titulo">Assistente de IA</div>
+        </div>
+
+        <section class="secao ativa">
+            <div class="page-header">
+                <div>
+                    <h2>🤖 Assistente de IA</h2>
+                    <p>Gere anúncios e preços otimizados com inteligência artificial</p>
+                </div>
+            </div>
+
+            <div class="ia-grid">
+                <!-- GERADOR DE ANÚNCIOS -->
+                <div class="ia-card">
+                    <h3><i class="fas fa-magic" style="color:var(--primary)"></i> Gerador de Anúncios</h3>
+
+                    <div class="campo" style="margin-bottom:12px">
+                        <label>Nome do Produto *</label>
+                        <input type="text" id="ia-nome" class="f-input" placeholder="Ex: Suporte para celular impresso em 3D">
+                    </div>
+                    <div class="campo" style="margin-bottom:12px">
+                        <label>Descrição base</label>
+                        <textarea id="ia-descricao" class="f-input" rows="3" placeholder="Descreva brevemente o produto..."></textarea>
+                    </div>
+                    <div class="campo" style="margin-bottom:12px">
+                        <label>Categoria</label>
+                        <select id="ia-categoria" class="f-input">
+                            <option value="">Selecione...</option>
+                            <option value="eletronicos">Eletrônicos</option>
+                            <option value="roupas">Roupas e Calçados</option>
+                            <option value="casa">Casa e Decoração</option>
+                            <option value="esportes">Esportes</option>
+                            <option value="beleza">Beleza e Saúde</option>
+                            <option value="impressao3d">Impressão 3D</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="campo" style="margin-bottom:12px">
+                        <label>Preço (R$)</label>
+                        <input type="number" id="ia-preco" class="f-input" placeholder="0,00" step="0.01">
+                    </div>
+
+                    <div class="secao-titulo">Marketplace</div>
+                    <div class="marketplace-tabs">
+                        <div class="mp-tab ativo" onclick="selecionarMP('mercadolivre',this)">🛒 Mercado Livre</div>
+                        <div class="mp-tab" onclick="selecionarMP('shopee',this)">🛍️ Shopee</div>
+                        <div class="mp-tab" onclick="selecionarMP('amazon',this)">📦 Amazon</div>
+                        <div class="mp-tab" onclick="selecionarMP('magalu',this)">🔵 Magalu</div>
+                    </div>
+
+                    <button class="btn-primary" style="width:100%" onclick="gerarAnuncio()">
+                        <i class="fas fa-magic"></i> Gerar Anúncio com IA
+                    </button>
+
+                    <div class="loading" id="loading-anuncio">
+                        <i class="fas fa-spinner"></i>
+                        <p>Gerando anúncio otimizado...</p>
+                    </div>
+
+                    <div class="resultado-box" id="resultado-anuncio">
+                        <div class="secao-titulo">📝 Título</div>
+                        <div class="resultado-titulo" id="res-titulo"></div>
+                        <button class="copiar-btn" onclick="copiar('res-titulo')">
+                            <i class="fas fa-copy"></i> Copiar título
+                        </button>
+
+                        <div class="secao-titulo" style="margin-top:14px">📄 Descrição</div>
+                        <div class="resultado-desc" id="res-descricao"></div>
+                        <button class="copiar-btn" onclick="copiar('res-descricao')">
+                            <i class="fas fa-copy"></i> Copiar descrição
+                        </button>
+
+                        <div class="secao-titulo" style="margin-top:14px">✅ Bullet Points</div>
+                        <ul class="bullet-list" id="res-bullets"></ul>
+
+                        <div class="secao-titulo">🔑 Palavras-chave</div>
+                        <div class="keywords" id="res-keywords"></div>
+
+                        <div class="secao-titulo">💡 Dica</div>
+                        <div class="dica-box" id="res-dica"></div>
+
+                        <button class="btn-primary" style="width:100%;margin-top:16px" onclick="usarNoProduto()">
+                            <i class="fas fa-save"></i> Usar ao Cadastrar Produto
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUGESTOR DE PREÇO -->
+                <div class="ia-card">
+                    <h3><i class="fas fa-tag" style="color:#10b981"></i> Sugestor de Preço</h3>
+
+                    <div class="campo" style="margin-bottom:12px">
+                        <label>Nome do Produto *</label>
+                        <input type="text" id="sp-nome" class="f-input" placeholder="Ex: Suporte para celular impresso em 3D">
+                    </div>
+                    <div class="campo" style="margin-bottom:12px">
+                        <label>Categoria</label>
+                        <select id="sp-categoria" class="f-input">
+                            <option value="">Selecione...</option>
+                            <option value="eletronicos">Eletrônicos</option>
+                            <option value="roupas">Roupas e Calçados</option>
+                            <option value="casa">Casa e Decoração</option>
+                            <option value="esportes">Esportes</option>
+                            <option value="beleza">Beleza e Saúde</option>
+                            <option value="impressao3d">Impressão 3D</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="campo" style="margin-bottom:16px">
+                        <label>Descrição</label>
+                        <textarea id="sp-descricao" class="f-input" rows="3" placeholder="Descreva o produto para uma sugestão mais precisa..."></textarea>
+                    </div>
+
+                    <button class="btn-primary" style="width:100%;background:linear-gradient(135deg,#10b981,#059669)" onclick="sugerirPreco()">
+                        <i class="fas fa-tag"></i> Sugerir Preço com IA
+                    </button>
+
+                    <div class="loading" id="loading-preco">
+                        <i class="fas fa-spinner"></i>
+                        <p>Analisando mercado...</p>
+                    </div>
+
+                    <div class="resultado-box" id="resultado-preco">
+                        <div class="secao-titulo">💰 Faixa de Preço Sugerida</div>
+                        <div class="preco-box">
+                            <div class="preco-item">
+                                <div class="valor" id="sp-minimo">R$ -</div>
+                                <div class="label">Mínimo</div>
+                            </div>
+                            <div class="preco-item" style="border-color:#10b981">
+                                <div class="valor" style="color:#10b981" id="sp-sugerido">R$ -</div>
+                                <div class="label">💡 Sugerido</div>
+                            </div>
+                            <div class="preco-item">
+                                <div class="valor" id="sp-maximo">R$ -</div>
+                                <div class="label">Máximo</div>
+                            </div>
+                        </div>
+
+                        <div class="secao-titulo">📊 Justificativa</div>
+                        <div class="resultado-desc" id="sp-justificativa"></div>
+
+                        <div class="secao-titulo">💡 Dicas de Precificação</div>
+                        <ul class="bullet-list" id="sp-dicas"></ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    let mpSelecionado = 'mercadolivre';
+    let ultimoAnuncio = null;
+
+    function trocarTema() {
+        const body = document.body;
+        const icon = document.getElementById('icon-tema');
+        if (body.classList.contains('tema-claro')) {
+            body.classList.replace('tema-claro', 'tema-escuro');
+            icon.className = 'fas fa-sun';
+            localStorage.setItem('tema', 'escuro');
+        } else {
+            body.classList.replace('tema-escuro', 'tema-claro');
+            icon.className = 'fas fa-moon';
+            localStorage.setItem('tema', 'claro');
+        }
+    }
+    if (localStorage.getItem('tema') === 'escuro') {
+        document.body.classList.replace('tema-claro', 'tema-escuro');
+        document.getElementById('icon-tema').className = 'fas fa-sun';
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('aberta');
+    }
+
+    function selecionarMP(mp, el) {
+        mpSelecionado = mp;
+        document.querySelectorAll('.mp-tab').forEach(t => t.classList.remove('ativo'));
+        el.classList.add('ativo');
+    }
+
+    async function gerarAnuncio() {
+        const nome = document.getElementById('ia-nome').value;
+        if (!nome) return alert('Preencha o nome do produto!');
+
+        document.getElementById('loading-anuncio').classList.add('visivel');
+        document.getElementById('resultado-anuncio').classList.remove('visivel');
+
+        const res = await fetch('/ia/gerar-anuncio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome,
+                descricao: document.getElementById('ia-descricao').value,
+                categoria: document.getElementById('ia-categoria').value,
+                preco: document.getElementById('ia-preco').value,
+                marketplace: mpSelecionado
+            })
+        });
+        const data = await res.json();
+        document.getElementById('loading-anuncio').classList.remove('visivel');
+
+        if (!data.success) return alert('Erro: ' + data.erro);
+
+        ultimoAnuncio = data.resultado;
+        const r = data.resultado;
+
+        document.getElementById('res-titulo').textContent = r.titulo;
+        document.getElementById('res-descricao').textContent = r.descricao;
+        document.getElementById('res-bullets').innerHTML = r.bullet_points.map(b =>
+            `<li>${b}</li>`).join('');
+        document.getElementById('res-keywords').innerHTML = r.palavras_chave.map(k =>
+            `<span class="keyword">${k}</span>`).join('');
+        document.getElementById('res-dica').innerHTML = `<i class="fas fa-lightbulb"></i> ${r.dicas}`;
+
+        document.getElementById('resultado-anuncio').classList.add('visivel');
+    }
+
+    async function sugerirPreco() {
+        const nome = document.getElementById('sp-nome').value;
+        if (!nome) return alert('Preencha o nome do produto!');
+
+        document.getElementById('loading-preco').classList.add('visivel');
+        document.getElementById('resultado-preco').classList.remove('visivel');
+
+        const res = await fetch('/ia/sugerir-preco', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome,
+                categoria: document.getElementById('sp-categoria').value,
+                descricao: document.getElementById('sp-descricao').value
+            })
+        });
+        const data = await res.json();
+        document.getElementById('loading-preco').classList.remove('visivel');
+
+        if (!data.success) return alert('Erro: ' + data.erro);
+
+        const r = data.resultado;
+        document.getElementById('sp-minimo').textContent = `R$ ${parseFloat(r.preco_minimo).toFixed(2)}`;
+        document.getElementById('sp-sugerido').textContent = `R$ ${parseFloat(r.preco_sugerido).toFixed(2)}`;
+        document.getElementById('sp-maximo').textContent = `R$ ${parseFloat(r.preco_maximo).toFixed(2)}`;
+        document.getElementById('sp-justificativa').textContent = r.justificativa;
+        document.getElementById('sp-dicas').innerHTML = r.dicas_precificacao.map(d =>
+            `<li>${d}</li>`).join('');
+
+        document.getElementById('resultado-preco').classList.add('visivel');
+    }
+
+    function copiar(id) {
+        const texto = document.getElementById(id).textContent;
+        navigator.clipboard.writeText(texto);
+        alert('✅ Copiado!');
+    }
+
+    function usarNoProduto() {
+        if (!ultimoAnuncio) return;
+        localStorage.setItem('ia_titulo', ultimoAnuncio.titulo);
+        localStorage.setItem('ia_descricao', ultimoAnuncio.descricao);
+        localStorage.setItem('ia_preco', ultimoAnuncio.preco_sugerido || '');
+        window.location.href = '/';
+        alert('✅ Dados salvos! Abra o formulário de novo produto.');
+    }
+</script>
+</body>
+</html>
