@@ -21,7 +21,6 @@ cloudinary.config(
 ML_APP_ID = os.environ.get('ML_APP_ID')
 ML_SECRET_KEY = os.environ.get('ML_SECRET_KEY')
 ML_REDIRECT_URI = os.environ.get('ML_REDIRECT_URI')
-DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
     conn = pg.connect(
@@ -32,6 +31,18 @@ def get_db():
         password=os.environ.get('DB_PASS')
     )
     return conn
+
+def fetchone(cursor):
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    cols = [desc[0] for desc in cursor.description]
+    return dict(zip(cols, row))
+
+def fetchall(cursor):
+    rows = cursor.fetchall()
+    cols = [desc[0] for desc in cursor.description]
+    return [dict(zip(cols, row)) for row in rows]
 
 def init_db():
     conn = get_db()
@@ -89,7 +100,7 @@ def is_admin():
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT nivel FROM usuarios WHERE id=%s', (session['user_id'],))
-    user = c.fetchone()
+    user = fetchone(c)
     conn.close()
     return user and user['nivel'] == 'admin'
 
@@ -110,7 +121,7 @@ def login():
         conn = get_db()
         c = conn.cursor()
         c.execute('SELECT * FROM usuarios WHERE email=%s', (data['email'],))
-        user = c.fetchone()
+        user = fetchone(c)
         if user and user['senha'] == hashlib.sha256(data['senha'].encode()).hexdigest():
             if not user['ativo']:
                 conn.close()
@@ -135,7 +146,7 @@ def registro():
         conn = get_db()
         c = conn.cursor()
         c.execute('SELECT COUNT(*) as t FROM usuarios')
-        total = c.fetchone()['t']
+        total = fetchone(c)['t']
         nivel = 'admin' if total == 0 else 'usuario'
         c.execute('INSERT INTO usuarios (nome, email, senha, nivel) VALUES (%s,%s,%s,%s)',
                   (data['nome'], data['email'], senha_hash, nivel))
@@ -158,9 +169,9 @@ def index():
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT access_token FROM tokens WHERE plataforma='mercadolivre'")
-    ml_conectado = c.fetchone() is not None
+    ml_conectado = fetchone(c) is not None
     c.execute('SELECT * FROM catalogos ORDER BY nome')
-    catalogos = c.fetchall()
+    catalogos = fetchall(c)
     conn.close()
     return render_template('index.html',
                            ml_conectado=ml_conectado,
@@ -183,9 +194,9 @@ def listar_usuarios():
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT id, nome, email, nivel, ativo, ultimo_acesso, criado_em FROM usuarios ORDER BY criado_em DESC')
-    usuarios = c.fetchall()
+    usuarios = fetchall(c)
     conn.close()
-    return jsonify([dict(u) for u in usuarios])
+    return jsonify(usuarios)
 
 @app.route('/api/usuarios', methods=['POST'])
 @admin_required
@@ -235,9 +246,9 @@ def listar_catalogos():
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT * FROM catalogos ORDER BY nome')
-    catalogos = c.fetchall()
+    catalogos = fetchall(c)
     conn.close()
-    return jsonify([dict(c) for c in catalogos])
+    return jsonify(catalogos)
 
 @app.route('/catalogos', methods=['POST'])
 def criar_catalogo():
@@ -300,9 +311,9 @@ def listar_produtos():
                          LEFT JOIN fotos f ON f.produto_id = p.id AND f.principal = 1
                          WHERE p.usuario_id = %s
                          ORDER BY p.criado_em DESC''', (usuario_id,))
-    produtos = c.fetchall()
+    produtos = fetchall(c)
     conn.close()
-    return jsonify([dict(p) for p in produtos])
+    return jsonify(produtos)
 
 @app.route('/produtos', methods=['POST'])
 def cadastrar_produto():
@@ -314,7 +325,7 @@ def cadastrar_produto():
               (data['nome'], data['descricao'], data['preco'],
                data['estoque'], data['categoria'],
                data.get('catalogo_id'), session.get('user_id')))
-    produto_id = c.fetchone()['id']
+    produto_id = fetchone(c)['id']
     conn.commit()
     conn.close()
     return jsonify({'success': True, 'id': produto_id})
@@ -360,16 +371,16 @@ def listar_fotos(produto_id):
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT * FROM fotos WHERE produto_id=%s ORDER BY principal DESC', (produto_id,))
-    fotos = c.fetchall()
+    fotos = fetchall(c)
     conn.close()
-    return jsonify([dict(f) for f in fotos])
+    return jsonify(fotos)
 
 @app.route('/fotos/<int:id>', methods=['DELETE'])
 def deletar_foto(id):
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT * FROM fotos WHERE id=%s', (id,))
-    foto = c.fetchone()
+    foto = fetchone(c)
     if foto:
         try:
             cloudinary.uploader.destroy(foto['public_id'])
@@ -408,7 +419,7 @@ def callback():
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT code_verifier FROM pkce_temp ORDER BY id DESC LIMIT 1")
-    row = c.fetchone()
+    row = fetchone(c)
     if not row:
         return "Erro: code_verifier não encontrado", 400
     code_verifier = row['code_verifier']
@@ -440,25 +451,25 @@ def dashboard():
     nivel = session.get('user_nivel')
     if nivel == 'admin':
         c.execute('SELECT COUNT(*) as t FROM produtos')
-        total_produtos = c.fetchone()['t']
+        total_produtos = fetchone(c)['t']
         c.execute('SELECT COUNT(*) as t FROM usuarios')
-        total_usuarios = c.fetchone()['t']
+        total_usuarios = fetchone(c)['t']
     else:
         c.execute('SELECT COUNT(*) as t FROM produtos WHERE usuario_id=%s', (usuario_id,))
-        total_produtos = c.fetchone()['t']
+        total_produtos = fetchone(c)['t']
         total_usuarios = None
     c.execute('SELECT COUNT(*) as t FROM catalogos')
-    total_catalogos = c.fetchone()['t']
+    total_catalogos = fetchone(c)['t']
     c.execute('SELECT COUNT(*) as t FROM fotos')
-    total_fotos = c.fetchone()['t']
+    total_fotos = fetchone(c)['t']
     c.execute("SELECT access_token FROM tokens WHERE plataforma='mercadolivre'")
-    ml_conectado = c.fetchone() is not None
+    ml_conectado = fetchone(c) is not None
     c.execute('''SELECT cat.nome, cat.cor, COUNT(p.id) as total
                  FROM catalogos cat
                  LEFT JOIN produtos p ON p.catalogo_id = cat.id
                  GROUP BY cat.id, cat.nome, cat.cor
                  ORDER BY total DESC''')
-    por_catalogo = c.fetchall()
+    por_catalogo = fetchall(c)
     conn.close()
     return jsonify({
         'total_produtos': total_produtos,
@@ -466,8 +477,9 @@ def dashboard():
         'total_fotos': total_fotos,
         'total_usuarios': total_usuarios,
         'ml_conectado': ml_conectado,
-        'por_catalogo': [dict(p) for p in por_catalogo]
+        'por_catalogo': por_catalogo
     })
+
 @app.route('/setup-admin')
 def setup_admin():
     conn = get_db()
@@ -476,6 +488,7 @@ def setup_admin():
     conn.commit()
     conn.close()
     return "Primeiro usuário promovido a admin! Faça login novamente."
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
