@@ -578,7 +578,12 @@ def ia():
     return render_template('ia.html',
                            user_nome=session.get('user_nome'),
                            user_nivel=session.get('user_nivel'))
-
+@app.route('/debug-groq')
+def debug_groq():
+    key = GROQ_API_KEY
+    if key:
+        return f"Chave encontrada: {key[:10]}..."
+    return "Chave NÃO encontrada!"
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
