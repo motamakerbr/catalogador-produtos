@@ -24,14 +24,12 @@ ML_REDIRECT_URI = os.environ.get('ML_REDIRECT_URI')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
-    import urllib.parse
-    r = urllib.parse.urlparse(DATABASE_URL)
     conn = pg.connect(
-        host=r.hostname,
-        port=r.port or 5432,
-        database=r.path[1:],
-        user=r.username,
-        password=r.password
+        host=os.environ.get('PGHOST'),
+        port=int(os.environ.get('PGPORT', 5432)),
+        database=os.environ.get('PGDATABASE'),
+        user=os.environ.get('PGUSER'),
+        password=os.environ.get('PGPASSWORD')
     )
     return conn
 
