@@ -25,11 +25,11 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
     conn = pg.connect(
-        host=os.environ.get('PGHOST'),
-        port=int(os.environ.get('PGPORT', 5432)),
-        database=os.environ.get('PGDATABASE'),
-        user=os.environ.get('PGUSER'),
-        password=os.environ.get('PGPASSWORD')
+        host=os.environ.get('DB_HOST'),
+        port=int(os.environ.get('DB_PORT', 5432)),
+        database=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASS')
     )
     return conn
 
