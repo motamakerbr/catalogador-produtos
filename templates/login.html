@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Catalogador</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+        .logo p { color: #888; font-size: 0.9rem; }
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 25px;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #888;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+        }
+        .tab.ativo {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .campo { margin-bottom: 16px; }
+        .campo label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .campo input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            transition: border 0.2s;
+        }
+        .campo input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 5px;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .msg {
+            display: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-top: 12px;
+            text-align: center;
+        }
+        .msg.erro { background: #fee2e2; color: #991b1b; }
+        .msg.ok { background: #d1fae5; color: #065f46; }
+        .form { display: none; }
+        .form.ativo { display: block; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <h1>🛒 Catalogador</h1>
+            <p>Gerencie seus produtos em todos os marketplaces</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab ativo" onclick="trocarTab('login')">Entrar</button>
+            <button class="tab" onclick="trocarTab('registro')">Criar Conta</button>
+        </div>
+
+        <div id="form-login" class="form ativo">
+            <div class="campo">
+                <label>Email</label>
+                <input type="email" id="login-email" placeholder="seu@email.com">
+            </div>
+            <div class="campo">
+                <label>Senha</label>
+                <input type="password" id="login-senha" placeholder="••••••••">
+            </div>
+            <button class="btn" onclick="fazerLogin()">Entrar</button>
+            <div class="msg" id="msg-login"></div>
+        </div>
+
+        <div id="form-registro" class="form">
+            <div class="campo">
+                <label>Nome</label>
+                <input type="text" id="reg-nome" placeholder="Seu nome">
+            </div>
+            <div class="campo">
+                <label>Email</label>
+                <input type="email" id="reg-email" placeholder="seu@email.com">
+            </div>
+            <div class="campo">
+                <label>Senha</label>
+                <input type="password" id="reg-senha" placeholder="••••••••">
+            </div>
+            <button class="btn" onclick="fazerRegistro()">Criar Conta</button>
+            <div class="msg" id="msg-registro"></div>
+        </div>
+    </div>
+
+    <script>
+        function trocarTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativo'));
+            document.querySelectorAll('.form').forEach(f => f.classList.remove('ativo'));
+            event.target.classList.add('ativo');
+            document.getElementById('form-' + tab).classList.add('ativo');
+        }
+
+        async function fazerLogin() {
+            const email = document.getElementById('login-email').value;
+            const senha = document.getElementById('login-senha').value;
+            const msg = document.getElementById('msg-login');
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, senha })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = '/';
+            } else {
+                msg.className = 'msg erro';
+                msg.style.display = 'block';
+                msg.textContent = data.erro;
+            }
+        }
+
+        async function fazerRegistro() {
+            const nome = document.getElementById('reg-nome').value;
+            const email = document.getElementById('reg-email').value;
+            const senha = document.getElementById('reg-senha').value;
+            const msg = document.getElementById('msg-registro');
+            const res = await fetch('/registro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, email, senha })
+            });
+            const data = await res.json();
+            if (data.success) {
+                msg.className = 'msg ok';
+                msg.style.display = 'block';
+                msg.textContent = '✅ Conta criada! Faça login.';
+                setTimeout(() => trocarTab('login'), 1500);
+            } else {
+                msg.className = 'msg erro';
+                msg.style.display = 'block';
+                msg.textContent = data.erro;
+            }
+        }
+
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const ativo = document.querySelector('.form.ativo').id;
+                if (ativo === 'form-login') fazerLogin();
+                else fazerRegistro();
+            }
+        });
+    </script>
+</body>
+</html>
