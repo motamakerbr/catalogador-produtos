@@ -25,15 +25,13 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
     import urllib.parse
-    url = DATABASE_URL
-    r = urllib.parse.urlparse(url)
+    r = urllib.parse.urlparse(DATABASE_URL)
     conn = pg.connect(
         host=r.hostname,
         port=r.port or 5432,
-        database=r.path.lstrip('/'),
-        user=r.username or 'postgres',
-        password=r.password,
-        ssl_context=False
+        database=r.path[1:],
+        user=r.username,
+        password=r.password
     )
     return conn
 
