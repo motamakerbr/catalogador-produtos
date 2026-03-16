@@ -7,8 +7,7 @@ import base64
 import cloudinary
 import cloudinary.uploader
 from datetime import datetime
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import pg8000.dbapi as pg
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'chave-secreta-local')
@@ -25,7 +24,17 @@ ML_REDIRECT_URI = os.environ.get('ML_REDIRECT_URI')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    import urllib.parse
+    r = urllib.parse.urlparse(DATABASE_URL)
+    conn = pg.connect(
+        host=r.hostname,
+        port=r.port or 5432,
+        database=r.path[1:],
+        user=r.username,
+        password=r.password,
+        ssl_context=False
+    )
+    conn.row_factory = pg.Row
     return conn
 
 def init_db():
