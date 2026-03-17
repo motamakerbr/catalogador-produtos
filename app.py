@@ -526,7 +526,7 @@ def gerar_imagem():
     hf_token = os.environ.get('HF_TOKEN')
     try:
         resposta = requests.post(
-            'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
+            'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
             headers={'Authorization': f'Bearer {hf_token}'},
             json={'inputs': prompt}
         )
