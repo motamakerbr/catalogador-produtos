@@ -144,6 +144,9 @@ Você SEMPRE responde em JSON válido, sem texto adicional.'''
         raise Exception(str(dados))
     texto = dados['choices'][0]['message']['content']
     texto = texto.replace('```json', '').replace('```', '').strip()
+    # Remove caracteres de controle inválidos
+    import re
+    texto = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', texto)
     return json.loads(texto)
 
 # ── AUTH ──
