@@ -215,6 +215,51 @@
                         <ul class="bullet-list" id="sp-dicas"></ul>
                     </div>
                 </div>
+                <!-- GERADOR DE IMAGENS -->
+                <div class="ia-card" style="grid-column: 1 / -1">
+                    <h3><i class="fas fa-image" style="color:#ec4899"></i> Gerador de Imagens de Produto</h3>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+                        <div class="campo">
+                            <label>Nome do Produto *</label>
+                            <input type="text" id="img-nome" class="f-input" placeholder="Ex: Suporte para celular">
+                        </div>
+                        <div class="campo">
+                            <label>Categoria</label>
+                            <input type="text" id="img-categoria" class="f-input" placeholder="Ex: Impressão 3D">
+                        </div>
+                        <div class="campo">
+                            <label>Estilo</label>
+                            <select id="img-estilo" class="f-input">
+                                <option value="product photo, white background, professional">📦 Foto de produto (fundo branco)</option>
+                                <option value="lifestyle photo, natural lighting, modern">🌿 Lifestyle (ambiente natural)</option>
+                                <option value="3d render, studio lighting, minimalist">🎨 3D Render minimalista</option>
+                                <option value="flat lay, top view, clean background">📸 Flat lay (vista de cima)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-primary" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)" onclick="gerarImagem()">
+                        <i class="fas fa-magic"></i> Gerar Imagem com IA
+                    </button>
+                    <div class="loading" id="loading-imagem">
+                        <i class="fas fa-spinner"></i>
+                        <p>Gerando imagem... pode levar até 30 segundos!</p>
+                    </div>
+                    <div id="resultado-imagem" style="display:none;margin-top:16px">
+                        <div class="secao-titulo">🖼️ Imagem Gerada</div>
+                        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+                            <img id="img-resultado" src="" alt="Imagem gerada"
+                                 style="width:300px;height:300px;object-fit:cover;border-radius:12px;border:1px solid var(--border)">
+                            <div style="display:flex;flex-direction:column;gap:10px">
+                                <button class="btn-primary" onclick="baixarImagem()">
+                                    <i class="fas fa-download"></i> Baixar Imagem
+                                </button>
+                                <button class="btn-secondary" onclick="gerarImagem()">
+                                    <i class="fas fa-redo"></i> Gerar Nova
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -334,6 +379,38 @@
         localStorage.setItem('ia_preco', ultimoAnuncio.preco_sugerido || '');
         window.location.href = '/';
         alert('✅ Dados salvos! Abra o formulário de novo produto.');
+    }
+    async function gerarImagem() {
+        const nome = document.getElementById('img-nome').value;
+        if (!nome) return alert('Preencha o nome do produto!');
+
+        document.getElementById('loading-imagem').classList.add('visivel');
+        document.getElementById('resultado-imagem').style.display = 'none';
+
+        const res = await fetch('/ia/gerar-imagem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome,
+                categoria: document.getElementById('img-categoria').value,
+                estilo: document.getElementById('img-estilo').value
+            })
+        });
+        const data = await res.json();
+        document.getElementById('loading-imagem').classList.remove('visivel');
+
+        if (!data.success) return alert('Erro: ' + data.erro);
+
+        document.getElementById('img-resultado').src = data.imagem;
+        document.getElementById('resultado-imagem').style.display = 'block';
+    }
+
+    function baixarImagem() {
+        const img = document.getElementById('img-resultado').src;
+        const a = document.createElement('a');
+        a.href = img;
+        a.download = 'produto-ia.jpg';
+        a.click();
     }
 </script>
 </body>
