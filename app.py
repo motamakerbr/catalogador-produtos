@@ -23,7 +23,6 @@ ML_APP_ID = os.environ.get('ML_APP_ID')
 ML_SECRET_KEY = os.environ.get('ML_SECRET_KEY')
 ML_REDIRECT_URI = os.environ.get('ML_REDIRECT_URI')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 def get_db():
     conn = pg.connect(
@@ -116,18 +115,34 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-def chamar_gemini(prompt):
+def chamar_ia(prompt):
     resposta = requests.post(
-        f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}',
+        'https://api.groq.com/openai/v1/chat/completions',
+        headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
         json={
-            'contents': [{'parts': [{'text': prompt}]}],
-            'generationConfig': {'temperature': 0.9}
+            'model': 'llama-3.3-70b-versatile',
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': '''Você é um copywriter especialista em e-commerce brasileiro com 10 anos de experiência vendendo em Mercado Livre, Shopee, Amazon e Magalu.
+Você conhece profundamente o comportamento do consumidor brasileiro, técnicas de SEO para marketplaces e psicologia de vendas.
+Você SEMPRE cria títulos e descrições ORIGINAIS e CRIATIVAS, nunca copia o que o usuário escreveu.
+Você usa gatilhos mentais, destaca benefícios reais e usa linguagem persuasiva.
+Você SEMPRE responde em JSON válido, sem texto adicional.'''
+                },
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'temperature': 0.9,
+            'max_tokens': 2000
         }
     )
     dados = resposta.json()
-    if 'candidates' not in dados:
+    if 'choices' not in dados:
         raise Exception(str(dados))
-    texto = dados['candidates'][0]['content']['parts'][0]['text']
+    texto = dados['choices'][0]['message']['content']
     texto = texto.replace('```json', '').replace('```', '').strip()
     return json.loads(texto)
 
@@ -498,7 +513,7 @@ def dashboard():
         'por_catalogo': por_catalogo
     })
 
-# ── IA GROQ ──
+# ── IA ──
 @app.route('/ia/gerar-anuncio', methods=['POST'])
 def gerar_anuncio():
     data = request.json
@@ -515,28 +530,34 @@ def gerar_anuncio():
         'magalu': 'Magazine Luiza. Título máximo 100 caracteres. Descrição focada em benefícios para o consumidor.'
     }
 
-    prompt = f"""Você é um especialista em vendas online no Brasil.
-Crie um anúncio otimizado para {marketplace.upper()} para o seguinte produto:
+    prompt = f"""Crie um anúncio ORIGINAL e PERSUASIVO para {marketplace.upper()} para o seguinte produto:
 
-Nome: {nome}
-Descrição base: {descricao}
+Nome do produto: {nome}
+Informações base: {descricao}
 Categoria: {categoria}
 Preço: R$ {preco}
 
-Regras para {marketplace}: {regras.get(marketplace, 'Anúncio geral para marketplace brasileiro.')}
+Regras específicas para {marketplace}: {regras.get(marketplace, 'Marketplace brasileiro.')}
 
-Responda APENAS em JSON válido com esta estrutura:
+IMPORTANTE:
+- NÃO copie a descrição fornecida, crie algo ORIGINAL e CRIATIVO
+- Use gatilhos mentais como escassez, prova social, benefícios
+- Pense como um vendedor top do marketplace
+- Sugira um preço competitivo baseado no mercado brasileiro atual
+- As palavras-chave devem ser termos que compradores reais pesquisam
+
+Responda APENAS em JSON válido:
 {{
-  "titulo": "título otimizado",
-  "descricao": "descrição completa otimizada",
-  "bullet_points": ["ponto 1", "ponto 2", "ponto 3", "ponto 4", "ponto 5"],
-  "palavras_chave": ["palavra1", "palavra2", "palavra3"],
+  "titulo": "título otimizado e atrativo",
+  "descricao": "descrição completa, persuasiva e original com pelo menos 3 parágrafos",
+  "bullet_points": ["benefício 1", "benefício 2", "benefício 3", "benefício 4", "benefício 5"],
+  "palavras_chave": ["termo1", "termo2", "termo3", "termo4", "termo5"],
   "preco_sugerido": 0.00,
-  "dicas": "dica rápida para melhorar o anúncio"
+  "dicas": "dica específica para aumentar as vendas deste produto"
 }}"""
 
     try:
-        resultado = chamar_gemini(prompt)
+        resultado = chamar_ia(prompt)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
@@ -548,24 +569,29 @@ def sugerir_preco():
     categoria = data.get('categoria', '')
     descricao = data.get('descricao', '')
 
-    prompt = f"""Você é um especialista em precificação de produtos para marketplaces brasileiros.
-Analise o produto abaixo e sugira uma faixa de preço competitiva:
+    prompt = f"""Analise o produto abaixo e sugira uma faixa de preço competitiva para o mercado brasileiro:
 
 Nome: {nome}
 Categoria: {categoria}
 Descrição: {descricao}
+
+Considere:
+- Preços praticados em Mercado Livre, Shopee e Amazon Brasil
+- Margem de lucro saudável para o vendedor
+- Competitividade no mercado
+- Custos de frete e taxas dos marketplaces
 
 Responda APENAS em JSON válido:
 {{
   "preco_minimo": 0.00,
   "preco_sugerido": 0.00,
   "preco_maximo": 0.00,
-  "justificativa": "explicação breve",
-  "dicas_precificacao": ["dica1", "dica2"]
+  "justificativa": "explicação detalhada da precificação",
+  "dicas_precificacao": ["dica1", "dica2", "dica3"]
 }}"""
 
     try:
-        resultado = chamar_gemini(prompt)
+        resultado = chamar_ia(prompt)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
@@ -577,6 +603,7 @@ def ia():
     return render_template('ia.html',
                            user_nome=session.get('user_nome'),
                            user_nivel=session.get('user_nivel'))
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
