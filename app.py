@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, session
 import os
 import json
+import re
 import requests
 import secrets
 import hashlib
@@ -144,8 +145,6 @@ Você SEMPRE responde em JSON válido, sem texto adicional.'''
         raise Exception(str(dados))
     texto = dados['choices'][0]['message']['content']
     texto = texto.replace('```json', '').replace('```', '').strip()
-    # Remove caracteres de controle inválidos
-    import re
     texto = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', texto)
     return json.loads(texto)
 
@@ -517,6 +516,28 @@ def dashboard():
     })
 
 # ── IA ──
+@app.route('/ia/gerar-imagem', methods=['POST'])
+def gerar_imagem():
+    data = request.json
+    nome = data.get('nome', '')
+    categoria = data.get('categoria', '')
+    estilo = data.get('estilo', 'product photo, white background, professional')
+    prompt = f"{nome}, {categoria}, {estilo}, high quality, 4k, studio lighting"
+    hf_token = os.environ.get('HF_TOKEN')
+    try:
+        resposta = requests.post(
+            'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
+            headers={'Authorization': f'Bearer {hf_token}'},
+            json={'inputs': prompt}
+        )
+        if resposta.status_code == 200:
+            imagem_b64 = base64.b64encode(resposta.content).decode('utf-8')
+            return jsonify({'success': True, 'imagem': f'data:image/jpeg;base64,{imagem_b64}'})
+        else:
+            return jsonify({'success': False, 'erro': resposta.text})
+    except Exception as e:
+        return jsonify({'success': False, 'erro': str(e)})
+
 @app.route('/ia/gerar-anuncio', methods=['POST'])
 def gerar_anuncio():
     data = request.json
@@ -525,14 +546,12 @@ def gerar_anuncio():
     categoria = data.get('categoria', '')
     preco = data.get('preco', '')
     marketplace = data.get('marketplace', 'geral')
-
     regras = {
         'mercadolivre': 'Mercado Livre Brasil. Título máximo 60 caracteres. Descrição detalhada com bullet points. Destaque frete grátis e garantia.',
         'shopee': 'Shopee Brasil. Título máximo 120 caracteres. Use emojis. Descrição com hashtags no final.',
         'amazon': 'Amazon Brasil. Título máximo 200 caracteres. Descrição técnica e detalhada. Bullet points com benefícios.',
         'magalu': 'Magazine Luiza. Título máximo 100 caracteres. Descrição focada em benefícios para o consumidor.'
     }
-
     prompt = f"""Crie um anúncio ORIGINAL e PERSUASIVO para {marketplace.upper()} para o seguinte produto:
 
 Nome do produto: {nome}
@@ -558,7 +577,6 @@ Responda APENAS em JSON válido:
   "preco_sugerido": 0.00,
   "dicas": "dica específica para aumentar as vendas deste produto"
 }}"""
-
     try:
         resultado = chamar_ia(prompt)
         return jsonify({'success': True, 'resultado': resultado})
@@ -571,7 +589,6 @@ def sugerir_preco():
     nome = data.get('nome', '')
     categoria = data.get('categoria', '')
     descricao = data.get('descricao', '')
-
     prompt = f"""Analise o produto abaixo e sugira uma faixa de preço competitiva para o mercado brasileiro:
 
 Nome: {nome}
@@ -592,12 +609,19 @@ Responda APENAS em JSON válido:
   "justificativa": "explicação detalhada da precificação",
   "dicas_precificacao": ["dica1", "dica2", "dica3"]
 }}"""
-
     try:
         resultado = chamar_ia(prompt)
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
+
+@app.route('/ia')
+def ia():
+    if 'user_id' not in session:
+        return redirect('/login')
+    return render_template('ia.html',
+                           user_nome=session.get('user_nome'),
+                           user_nivel=session.get('user_nivel'))
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
