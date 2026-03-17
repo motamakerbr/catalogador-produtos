@@ -598,52 +598,6 @@ Responda APENAS em JSON válido:
         return jsonify({'success': True, 'resultado': resultado})
     except Exception as e:
         return jsonify({'success': False, 'erro': str(e)})
-async function gerarImagem() {
-        const nome = document.getElementById('img-nome').value;
-        if (!nome) return alert('Preencha o nome do produto!');
-
-        document.getElementById('loading-imagem').classList.add('visivel');
-        document.getElementById('resultado-imagem').style.display = 'none';
-
-        const res = await fetch('/ia/gerar-imagem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                nome,
-                categoria: document.getElementById('img-categoria').value,
-                estilo: document.getElementById('img-estilo').value
-            })
-        });
-        const data = await res.json();
-        document.getElementById('loading-imagem').classList.remove('visivel');
-
-        if (!data.success) return alert('Erro: ' + data.erro);
-
-        document.getElementById('img-resultado').src = data.imagem;
-        document.getElementById('resultado-imagem').style.display = 'block';
-    }
-
-    function baixarImagem() {
-        const img = document.getElementById('img-resultado').src;
-        const a = document.createElement('a');
-        a.href = img;
-        a.download = 'produto-ia.jpg';
-        a.click();
-    }
-```
-
-Salva tudo com **Cmd + S** e no terminal:
-```
-git add .
-git commit -m "adiciona gerador de imagens"
-git push
-@app.route('/ia')
-def ia():
-    if 'user_id' not in session:
-        return redirect('/login')
-    return render_template('ia.html',
-                           user_nome=session.get('user_nome'),
-                           user_nivel=session.get('user_nivel'))
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
